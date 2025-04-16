@@ -1,0 +1,10 @@
+Pour générer sample.ll à partir de sample.c
+
+clang -S -emit-llvm test/sample.c -o test/sample.ll
+
+Pour appliquer une passe d'obfuscation et générer du IR texte lisible, utilise la commande suivante :
+opt -load-pass-plugin ./build/DeadBlockInsertion.so -passes=insert-dead -S < test/sample.ll > test/sample_obfuscated.ll
+
+En obfusqué on supprime le -S pour générer du .bc (bitcode LLVM)
+opt -load-pass-plugin ./build/DeadBlockInsertion.so -passes=insert-dead < test/sample.ll > test/sample_obfuscated.bc
+
