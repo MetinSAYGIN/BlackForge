@@ -1,34 +1,36 @@
-// DeadBlockInsertion.cpp
-#include "llvm/IR/Function.h"
-#include "llvm/IR/IRBuilder.h"
-#include "llvm/Pass.h"
+#include "llvm/IR/PassManager.h"
+#include "llvm/Passes/PassBuilder.h"
+#include "llvm/Passes/PassPlugin.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/IR/Function.h"
 
 using namespace llvm;
 
 namespace {
-struct DeadBlockInsertion : public FunctionPass {
-    static char ID;
-    DeadBlockInsertion() : FunctionPass(ID) {}
-
-    bool runOnFunction(Function &F) override {
-        LLVMContext &Ctx = F.getContext();
-
-        // On va ajouter un dead block à chaque fonction
-        BasicBlock *deadBlock = BasicBlock::Create(Ctx, "dead_block", &F);
-        IRBuilder<> builder(deadBlock);
-
-        // Instructions sans effet
-        Value *A = builder.getInt32(5);
-        Value *B = builder.getInt32(7);
-        Value *C = builder.CreateMul(A, B, "dead_mul");
-        builder.CreateRet(C); // Retourne 35, mais jamais atteint
-
-        // Ne branche PAS vers le dead block -> il est mort
-        return true;
+struct DeadBlockInsertionPass : public PassInfoMixin<DeadBlockInsertionPass> {
+    PreservedAnalyses run(Function &F, FunctionAnalysisManager &) {
+        errs() << "Running DeadBlockInsertion on function: " << F.getName() << "\n";
+        // Ta logique d'obfuscation ici
+        return PreservedAnalyses::all();
     }
 };
-}
+} // namespace
 
-char DeadBlockInsertion::ID = 0;
-static RegisterPass<DeadBlockInsertion> X("insert-dead", "Insert a dead basic block");
+extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginInfo() {
+    return {
+        LLVM_PLUGIN_API_VERSION,
+        "DeadBlockInsertion",
+        LLVM_VERSION_STRING,
+        [](PassBuilder &PB) {
+            PB.registerPipelineParsingCallback(
+                [](StringRef Name, FunctionPassManager &FPM,
+                   ArrayRef<PassBuilder::PipelineElement>) {
+                    if (Name == "insert-dead") {
+                        FPM.addPass(DeadBlockInsertionPass());
+                        return true;
+                    }
+                    return false;
+                });
+        }
+    };
+}
