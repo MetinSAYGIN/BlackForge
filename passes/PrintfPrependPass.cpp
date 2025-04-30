@@ -51,7 +51,7 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
         [](PassBuilder &PB) {
             PB.registerPipelineParsingCallback(
                 [](StringRef Name, ModulePassManager &MPM, ArrayRef<PassBuilder::PipelineElement>) {
-                    if (Name == "printf-prepend") {
+                    if (Name == "PrintfPrependPass") {
                         MPM.addPass(PrintfPrependPass());
                         return true;
                     }
