@@ -98,9 +98,15 @@ with open(obf_ll, "r+") as f:
     content = re.sub(r'source_filename\s*=\s*".*?"',
                      f'source_filename = "{BASE_NAME}_obf.ll"',
                      content)
+    content = re.sub(
+        r"ModuleID = '([^']+)'",  # Trouve la ligne contenant ModuleID
+        f"ModuleID = '{obf_ll}'",  # Remplace par le nouveau chemin
+        content
+    )
     f.seek(0)
     f.write(content)
     f.truncate()
+    
     
 # Compilation binaire obfusqué
 obf_bin = f"{OBF_DIR}/{BASE_NAME}"
