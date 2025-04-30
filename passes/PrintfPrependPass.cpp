@@ -4,7 +4,6 @@
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/IRBuilder.h"
 
 using namespace llvm;
@@ -12,9 +11,6 @@ using namespace llvm;
 namespace {
 struct PrintfPrependPass : public PassInfoMixin<PrintfPrependPass> {
     PreservedAnalyses run(Module &M, ModuleAnalysisManager &) {
-        // Création d'un IRBuilder pour insérer de nouvelles instructions
-        IRBuilder<> Builder(M.getContext());
-
         // Récupère la fonction printf
         Function *printfFunc = M.getFunction("printf");
         if (!printfFunc) {
@@ -25,16 +21,16 @@ struct PrintfPrependPass : public PassInfoMixin<PrintfPrependPass> {
         // Parcours toutes les fonctions du module
         for (Function &F : M) {
             for (BasicBlock &BB : F) {
-                for (Instruction &I : BB) {
-                    // Vérifie si l'instruction est un appel à printf
-                    if (CallInst *callInst = dyn_cast<CallInst>(&I)) {
+                for (auto it = BB.begin(); it != BB.end(); ++it) {
+                    if (CallInst *callInst = dyn_cast<CallInst>(&*it)) {
                         if (callInst->getCalledFunction() == printfFunc) {
+                            // Création d'un nouveau builder avant l'instruction actuelle
+                            IRBuilder<> Builder(&*it);
+                            
                             // Ajoute un printf("########") avant chaque appel printf
-                            // Création de l'instruction printf("########")
-                            std::vector<Value *> args;
-                            args.push_back(Builder.CreateGlobalStringPtr("########"));
-                            Builder.SetInsertPoint(&BB, ++Builder.GetInsertPoint());
-                            Builder.CreateCall(printfFunc, args);
+                            Value *formatStr = Builder.CreateGlobalStringPtr("########\n");
+                            Builder.CreateCall(printfFunc, {formatStr});
+                            
                             errs() << "Ajout de printf(\"########\") avant un printf existant.\n";
                         }
                     }
@@ -54,9 +50,9 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
         LLVM_VERSION_STRING,
         [](PassBuilder &PB) {
             PB.registerPipelineParsingCallback(
-                [](StringRef Name, FunctionPassManager &FPM, ArrayRef<PassBuilder::PipelineElement>) {
-                    if (Name == "PrintfPrependPass") {
-                        FPM.addPass(PrintfPrependPass());
+                [](StringRef Name, ModulePassManager &MPM, ArrayRef<PassBuilder::PipelineElement>) {
+                    if (Name == "printf-prepend") {
+                        MPM.addPass(PrintfPrependPass());
                         return true;
                     }
                     return false;
