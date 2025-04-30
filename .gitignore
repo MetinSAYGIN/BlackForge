@@ -3,3 +3,7 @@
 /sources/obfusque/*
 !/sources/obfusque/.gitkeep
 
+/sources/clair/*
+!sources/clair/*.c
+!sources/clair/*.cpp
+
