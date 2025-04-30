@@ -141,4 +141,5 @@ print(separator)
 # Variation totale
 gain = ((time_obf - time_clair) / time_clair) * 100
 print(f"\n⏱️  Variation du temps d'exécution : {gain:+.2f}%")
-print("Passe utilisée : "{chosen_pass})
+print(f"Passe utilisée : {chosen_pass}")
+
