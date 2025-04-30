@@ -97,8 +97,8 @@ subprocess.run(f"{compiler} {obf_ll} -o {OBF_DIR}/{BASE_NAME}", shell=True)
 entropy_clair = calculate_entropy(os.path.join(SOURCE_DIR, BASE_NAME))
 entropy_obfusque = calculate_entropy(os.path.join(OBF_DIR, BASE_NAME))
 
-size_clair = os.path.getsize(clair_exe)
-size_obfusque = os.path.getsize(obfusque_exe)
+size_clair = os.path.getsize(os.path.join(SOURCE_DIR, BASE_NAME))
+size_obfusque = os.path.getsize(os.path.join(OBF_DIR, BASE_NAME))
 
 # Mesure du temps clair
 print("[*] Exécution version claire...")
