@@ -27,10 +27,10 @@ struct DeadBlockInsertionPass : public PassInfoMixin<DeadBlockInsertionPass> {
         Module *M = F.getParent();
         LLVMContext &Ctx = F.getContext();
         
-        // 1. Préparer printf correctement
+        // 1. Préparer printf correctement - utilisation de getPointerTo pour le type char*
         FunctionType *PrintfTy = FunctionType::get(
             Type::getInt32Ty(Ctx),
-            {Type::getInt8PtrTy(Ctx)},  // Correction ici: c'est un pointeur de char, pas un char
+            {Type::getInt8Ty(Ctx)->getPointerTo()}, // Utilisez getPointerTo() au lieu de getInt8PtrTy
             true /* variadic */);
         
         errs() << "  Configuration de printf\n";
@@ -52,9 +52,29 @@ struct DeadBlockInsertionPass : public PassInfoMixin<DeadBlockInsertionPass> {
         // 3. Créer la structure du bloc mort
         errs() << "  Création de la structure des blocs\n";
         BasicBlock *EntryBB = &F.getEntryBlock();
+        
+        // Vérification qu'il y a au moins une instruction non-PHI
+        if (EntryBB->empty() || isa<PHINode>(EntryBB->front())) {
+            errs() << "  Le bloc d'entrée est vide ou ne contient que des PHI, ajout d'une instruction noop\n";
+            new AllocaInst(Type::getInt8Ty(Ctx), 0, "noop", &EntryBB->front());
+        }
+        
+        // Trouver la première instruction non-PHI
+        Instruction *FirstNonPHI = nullptr;
+        for (auto &I : *EntryBB) {
+            if (!isa<PHINode>(I)) {
+                FirstNonPHI = &I;
+                break;
+            }
+        }
+        
+        if (!FirstNonPHI) {
+            errs() << "  Impossible de trouver une instruction non-PHI dans le bloc d'entrée\n";
+            return PreservedAnalyses::all();
+        }
+        
         BasicBlock *DeadBB = BasicBlock::Create(Ctx, "dead_block", &F);
-        BasicBlock *RealBB = EntryBB->splitBasicBlock(
-            EntryBB->getFirstNonPHI(), "real_code");
+        BasicBlock *RealBB = EntryBB->splitBasicBlock(FirstNonPHI, "real_code");
         
         // 4. Construction du bloc mort
         errs() << "  Construction du bloc mort\n";
@@ -66,7 +86,7 @@ struct DeadBlockInsertionPass : public PassInfoMixin<DeadBlockInsertionPass> {
         PrintCall->setDoesNotThrow();
         
         // b) Opération mémoire opaque
-        LoadInst *CounterVal = DeadBuilder.CreateLoad(Type::getInt32Ty(Ctx), OpaqueCounter);
+        LoadInst *CounterVal = DeadBuilder.CreateLoad(OpaqueCounter->getValueType(), OpaqueCounter);
         Value *NewCounter = DeadBuilder.CreateAdd(CounterVal, DeadBuilder.getInt32(1));
         DeadBuilder.CreateStore(NewCounter, OpaqueCounter);
         
@@ -75,7 +95,7 @@ struct DeadBlockInsertionPass : public PassInfoMixin<DeadBlockInsertionPass> {
         DeadBuilder.CreateBr(LoopBB);
         
         IRBuilder<> LoopBuilder(LoopBB);
-        LoadInst *CondLoad = LoopBuilder.CreateLoad(Type::getInt1Ty(Ctx), OpaqueCond);
+        LoadInst *CondLoad = LoopBuilder.CreateLoad(OpaqueCond->getValueType(), OpaqueCond);
         LoopBuilder.CreateCondBr(CondLoad, RealBB, LoopBB);
         
         // 5. Modifier l'entrée originale
