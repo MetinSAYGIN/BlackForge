@@ -100,29 +100,44 @@ entropy_obfusque = calculate_entropy(os.path.join(OBF_DIR, BASE_NAME))
 size_clair = os.path.getsize(os.path.join(SOURCE_DIR, BASE_NAME))
 size_obfusque = os.path.getsize(os.path.join(OBF_DIR, BASE_NAME))
 
-# Mesure du temps clair
+# Exécution version claire
 print("[*] Exécution version claire...")
 start = time.time()
 subprocess.run(f"{SOURCE_DIR}/{BASE_NAME}", shell=True)
 end = time.time()
 time_clair = end - start
-print(f"[📦] Taille (clair)     : {size_clair / 1024:.2f} Ko")
-print(f"[✓] Temps clair : {time_clair:.4f} sec")
-print(f"[🔐] Entropie (clair)     : {entropy_clair:.4f}")
 
-# Mesure du temps obfusqué
+# Exécution version obfusquée
 print("[*] Exécution version obfusquée...")
 start = time.time()
 subprocess.run(f"{OBF_DIR}/{BASE_NAME}", shell=True)
 end = time.time()
 time_obf = end - start
-print(f"[📦] Taille (obfusqué) : {size_obfusque / 1024:.2f} Ko")
-print(f"[✓] Temps obfusqué : {time_obf:.4f} sec")
-print(f"[🔐] Entropie (obfusqué) : {entropy_obfusque:.4f}")
 
-# === Résumé final ===
-print("\n=== Résumé ===")
-print(f"→ Temps version claire    : {time_clair:.4f} sec")
-print(f"→ Temps version obfusquée : {time_obf:.4f} sec")
+# Calcul des variations en pourcentage
+size_variation = ((size_obfusque - size_clair) / size_clair) * 100
+time_variation = ((time_obf - time_clair) / time_clair) * 100
+entropy_variation = ((entropy_obfusque - entropy_clair) / entropy_clair) * 100
+
+# Construction du tableau avec formatage
+header = f"| {'Version':<12} | {'Taille (Ko)':<15} | {'Temps (s)':<10} | {'Entropie':<10} |"
+separator = "+" + "-"*14 + "+" + "-"*17 + "+" + "-"*12 + "+" + "-"*12 + "+"
+
+row_clair = f"| {'Clair':<12} | {size_clair / 1024:<15.2f} | {time_clair:<10.4f} | {entropy_clair:<10.4f} |"
+row_obfusque = f"| {'Obfusqué':<12} | {size_obfusque / 1024:<15.2f} | {time_obf:<10.4f} | {entropy_obfusque:<10.4f} |"
+row_variation = f"| {'Variation (%)':<12} | {size_variation:<15.2f} | {time_variation:<10.2f} | {entropy_variation:<10.2f} |"
+
+# Affichage du tableau
+print("\n=== 📊 Résumé comparatif ===")
+print(separator)
+print(header)
+print(separator)
+print(row_clair)
+print(row_obfusque)
+print(separator)
+print(row_variation)
+print(separator)
+
+# Variation totale
 gain = ((time_obf - time_clair) / time_clair) * 100
-print(f"→ Variation de temps       : {gain:+.2f}%")
+print(f"\n⏱️  Variation du temps d'exécution : {gain:+.2f}%")
