@@ -92,7 +92,7 @@ os.makedirs(OBF_DIR, exist_ok=True)
 
 # LLVM IR clair
 clair_ll = f"{SOURCE_DIR}/{BASE_NAME}.ll"
-subprocess.run(f"clang -emit-llvm -S -O1 {SOURCE_FILE} -o {clair_ll}", shell=True)
+subprocess.run(f"clang -emit-llvm -S -disable-O0-optnone {SOURCE_FILE} -o {clair_ll}", shell=True)
 
 # Compilation version claire
 compiler = "clang++" if IS_CPP else "clang"
