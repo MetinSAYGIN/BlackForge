@@ -9,15 +9,21 @@ PASSES_DIR = "passes"
 BUILD_DIR = "build"
 SOURCE_DIR = "sources/clair"
 OBF_DIR = "sources/obfusque"
-# Détection automatique du fichier .c dans sources/clair
+# Détection des fichiers .c
 source_files = [f for f in os.listdir(SOURCE_DIR) if f.endswith(".c")]
 if not source_files:
     print("[!] Aucun fichier .c trouvé dans sources/clair/")
     exit(1)
 
-SOURCE_FILE = os.path.join(SOURCE_DIR, source_files[0])
-BASE_NAME = os.path.splitext(source_files[0])[0]
-print(f"[+] Fichier source détecté : {SOURCE_FILE}")
+print("[?] Fichier source à compiler :")
+for idx, fname in enumerate(source_files):
+    print(f"  {idx}) {fname}")
+
+choice = int(input("→ Choix (numéro) : "))
+SOURCE_FILE = os.path.join(SOURCE_DIR, source_files[choice])
+BASE_NAME = os.path.splitext(source_files[choice])[0]
+print(f"[+] Fichier choisi : {SOURCE_FILE}")
+
 
 
 # === Étape 1 : Compilation des passes ===
