@@ -104,7 +104,7 @@ struct DeadBlockInsertionPass : public PassInfoMixin<DeadBlockInsertionPass> {
         EntryBB->getTerminator()->eraseFromParent();
         
         IRBuilder<> EntryBuilder(EntryBB);
-        EntryBuilder.CreateStore(ConstantInt::getFalse(Ctx), OpaqueCond);
+        EntryBuilder.CreateStore(ConstantInt::getTrue(Ctx), OpaqueCond);
         EntryBuilder.CreateBr(DeadBB);
         
         errs() << "  Transformation terminée\n";
