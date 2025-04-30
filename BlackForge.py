@@ -84,7 +84,7 @@ subprocess.run(f"clang -emit-llvm -S {SOURCE_FILE} -o {clair_ll}", shell=True)
 # Compilation version claire
 compiler = "clang++" if IS_CPP else "clang"
 clair_bin = f"{SOURCE_DIR}/{BASE_NAME}"
-subprocess.run(f"{compiler} {SOURCE_FILE} -o {clair_bin}", shell=True)
+subprocess.run(f"{compiler} -O0 -fno-inline {SOURCE_FILE} -o {clair_bin}", shell=True)
 
 # === Étape 4 : Obfuscation et compilation version obfusquée ===
 print("\n[+] Obfuscation...")
@@ -94,7 +94,7 @@ subprocess.run(cmd, shell=True)
 
 # Compilation binaire obfusqué
 obf_bin = f"{OBF_DIR}/{BASE_NAME}"
-subprocess.run(f"{compiler} {obf_ll} -o {obf_bin}", shell=True)
+subprocess.run(f"{compiler} -O0 -fno-inline {obf_ll} -o {obf_bin}", shell=True)
 
 # Calcul des métriques
 entropy_clair = calculate_entropy(clair_bin)
