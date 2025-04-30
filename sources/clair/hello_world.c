@@ -1,20 +1,38 @@
 #include <stdio.h>
-#include <stdlib.h>
 
-int somme(int a, int b) {
+// Fonction simple qui retourne la somme de deux entiers
+int add(int a, int b) {
     return a + b;
 }
 
-int produit(int a, int b) {
-    return a * b;
+// Fonction avec branchement conditionnel
+void check_value(int x) {
+    if (x > 10) {
+        printf("Valeur élevée: %d\n", x);
+    } else {
+        printf("Valeur basse: %d\n", x);
+    }
 }
 
-int main() {
-    int x = 5, y = 3;
-    printf("Somme : %d\n", somme(x, y));
-    printf("Produit : %d\n", produit(x, y));
+// Fonction avec boucle
+void count_down(int start) {
+    while (start > 0) {
+        printf("%d...\n", start);
+        start--;
+    }
+    printf("Partez!\n");
+}
 
-    // Code de test pour vérifier DeadBlock
-    printf("Dead Block Test : %d\n", 42);  // Pour forcer l'impact
+// Fonction principale
+int main() {
+    printf("Début du programme\n");
+    
+    int result = add(5, 7);
+    printf("5 + 7 = %d\n", result);
+    
+    check_value(result);
+    count_down(3);
+    
+    printf("Fin du programme\n");
     return 0;
 }
