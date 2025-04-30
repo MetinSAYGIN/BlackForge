@@ -15,7 +15,6 @@ using namespace llvm;
 namespace {
 struct DeadBlockInsertionPass : public PassInfoMixin<DeadBlockInsertionPass> {
     PreservedAnalyses run(Function &F, FunctionAnalysisManager &) {
-        // Ne s'applique qu'aux fonctions non vides
         if (F.empty())
             return PreservedAnalyses::all();
 
@@ -24,34 +23,29 @@ struct DeadBlockInsertionPass : public PassInfoMixin<DeadBlockInsertionPass> {
         LLVMContext &Ctx = F.getContext();
         Module *M = F.getParent();
 
-        // Préparation de printf
+        // Déclaration correcte de printf
         FunctionCallee PrintfFunc = M->getOrInsertFunction(
-        "printf", 
-        FunctionType::get(IntegerType::getInt32Ty(Ctx),
-        {PointerType::get(Type::getInt8Ty(Ctx), 0)},
-        true /* isVarArg */);
+            "printf",
+            FunctionType::get(IntegerType::getInt32Ty(Ctx),
+                            {PointerType::get(Type::getInt8Ty(Ctx), 0)},
+                            true));
 
-        // Création d'une chaîne globale opaque
         GlobalVariable *GV = new GlobalVariable(
             *M, ArrayType::get(Type::getInt8Ty(Ctx), 14),
             true, GlobalValue::PrivateLinkage,
             ConstantDataArray::getString(Ctx, "Never reached\n", true),
             ".str.dead");
 
-        // Création du bloc mort
         BasicBlock *DeadBlock = BasicBlock::Create(Ctx, "deadblock", &F);
         IRBuilder<> Builder(DeadBlock);
         
-        // Construction d'un pointeur opaque vers la chaîne
         Value *Zero = ConstantInt::get(Type::getInt32Ty(Ctx), 0);
         Value *GEP = Builder.CreateInBoundsGEP(GV->getValueType(), GV, 
-                                              {Zero, Zero}, "dead.str.ptr");
+                                             {Zero, Zero}, "dead.str.ptr");
         
-        // Appel à printf avec des arguments opaques
         Builder.CreateCall(PrintfFunc, {GEP});
         Builder.CreateRetVoid();
 
-        // Insertion d'une branche conditionnelle toujours fausse mais difficile à analyser
         BasicBlock &EntryBB = F.getEntryBlock();
         Instruction *FirstInst = &EntryBB.front();
         
@@ -62,11 +56,9 @@ struct DeadBlockInsertionPass : public PassInfoMixin<DeadBlockInsertionPass> {
             EntryBuilder.CreateAnd(GlobalAddr, Mask),
             EntryBuilder.getInt64(0));
         
-        // Création d'un bloc intermédiaire qui mène au bloc mort
         BasicBlock *DummyBB = BasicBlock::Create(Ctx, "dummy", &F);
         BranchInst::Create(DeadBlock, DummyBB);
         
-        // Remplacement de la première instruction par un branchement conditionnel
         BranchInst::Create(DummyBB, &EntryBB, Cond, FirstInst);
         FirstInst->eraseFromParent();
 
@@ -91,7 +83,6 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
                     return false;
                 });
             
-            // S'enregistre aussi pour s'exécuter après les optimisations
             PB.registerPipelineStartEPCallback(
                 [](ModulePassManager &MPM, OptimizationLevel) {
                     MPM.addPass(createModuleToFunctionPassAdaptor(DeadBlockInsertionPass()));
