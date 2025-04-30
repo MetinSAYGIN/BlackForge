@@ -4,6 +4,7 @@ import os
 import subprocess
 import time
 import math
+import re
 
 def calculate_entropy(filepath):
     with open(filepath, "rb") as f:
@@ -94,10 +95,9 @@ subprocess.run(cmd, shell=True)
 
 with open(obf_ll, "r+") as f:
     content = f.read()
-    content = content.replace(
-        f'source_filename = "{SOURCE_FILE}"',
-        f'source_filename = "{obf_ll}"'
-    )
+    content = re.sub(r'source_filename\s*=\s*".*?"',
+                     f'source_filename = "{BASE_NAME}_obf.ll"',
+                     content)
     f.seek(0)
     f.write(content)
     f.truncate()
