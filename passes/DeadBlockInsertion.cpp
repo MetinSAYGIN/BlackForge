@@ -88,7 +88,7 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
             PB.registerPipelineParsingCallback(
                 [](StringRef Name, FunctionPassManager &FPM,
                    ArrayRef<PassBuilder::PipelineElement>) {
-                    if (Name == "dead-block-insert") {
+                    if (Name == "DeadBlockInsertion") {
                         FPM.addPass(DeadBlockInsertionPass());
                         return true;
                     }
