@@ -3,6 +3,23 @@
 import os
 import subprocess
 import time
+import math
+
+def calculate_entropy(filepath):
+    with open(filepath, "rb") as f:
+        data = f.read()
+    if not data:
+        return 0
+    freq = [0] * 256
+    for byte in data:
+        freq[byte] += 1
+    entropy = 0.0
+    for f in freq:
+        if f > 0:
+            p = f / len(data)
+            entropy -= p * math.log2(p)
+    return entropy
+
 
 # === Chemins ===
 PASSES_DIR = "passes"
@@ -68,14 +85,6 @@ subprocess.run(f"clang -emit-llvm -S {SOURCE_FILE} -o {SOURCE_DIR}/{BASE_NAME}.l
 compiler = "clang++" if IS_CPP else "clang"
 subprocess.run(f"{compiler} {SOURCE_FILE} -o {SOURCE_DIR}/{BASE_NAME}", shell=True)
 
-# Mesure du temps clair
-print("[*] Exécution version claire...")
-start = time.time()
-subprocess.run(f"{SOURCE_DIR}/{BASE_NAME}", shell=True)
-end = time.time()
-time_clair = end - start
-print(f"[✓] Temps clair : {time_clair:.4f} sec")
-
 # === Étape 4 : Obfuscation et compilation version obfusquée ===
 print("\n[+] Obfuscation...")
 obf_ll = f"{OBF_DIR}/{BASE_NAME}_obf.ll"
@@ -85,13 +94,31 @@ subprocess.run(cmd, shell=True)
 # Compilation binaire obfusqué
 subprocess.run(f"{compiler} {obf_ll} -o {OBF_DIR}/{BASE_NAME}", shell=True)
 
+entropy_clair = calculate_entropy(os.path.join(SOURCE_DIR, BASE_NAME))
+entropy_obfusque = calculate_entropy(os.path.join(OBF_DIR, BASE_NAME))
+
+size_clair = os.path.getsize(clair_exe)
+size_obfusque = os.path.getsize(obfusque_exe)
+
+# Mesure du temps clair
+print("[*] Exécution version claire...")
+start = time.time()
+subprocess.run(f"{SOURCE_DIR}/{BASE_NAME}", shell=True)
+end = time.time()
+time_clair = end - start
+print(f"[📦] Taille (clair)     : {size_clair / 1024:.2f} Ko")
+print(f"[✓] Temps clair : {time_clair:.4f} sec")
+print(f"[🔐] Entropie (clair)     : {entropy_clair:.4f}")
+
 # Mesure du temps obfusqué
 print("[*] Exécution version obfusquée...")
 start = time.time()
 subprocess.run(f"{OBF_DIR}/{BASE_NAME}", shell=True)
 end = time.time()
 time_obf = end - start
+print(f"[📦] Taille (obfusqué) : {size_obfusque / 1024:.2f} Ko")
 print(f"[✓] Temps obfusqué : {time_obf:.4f} sec")
+print(f"[🔐] Entropie (obfusqué) : {entropy_obfusque:.4f}")
 
 # === Résumé final ===
 print("\n=== Résumé ===")
