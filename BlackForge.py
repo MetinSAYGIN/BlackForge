@@ -103,6 +103,7 @@ subprocess.run(f"{compiler} -O0 -fno-inline {SOURCE_FILE} -o {clair_bin}", shell
 print("\n[+] Obfuscation...")
 obf_ll = f"{OBF_DIR}/{BASE_NAME}_obf.ll"
 cmd = f"opt -load-pass-plugin {chosen_so} -passes={chosen_pass} -S {clair_ll} -o {obf_ll}"
+print(f"[+] Commande obfuscation : {cmd}")  # Afficher la commande pour vérifier qu'elle est correcte
 subprocess.run(cmd, shell=True)
 
 with open(obf_ll, "r+") as f:
