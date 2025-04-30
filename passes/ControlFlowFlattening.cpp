@@ -25,7 +25,7 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
             PB.registerPipelineParsingCallback(
                 [](StringRef Name, FunctionPassManager &FPM,
                    ArrayRef<PassBuilder::PipelineElement>) {
-                    if (Name == "flatten-cfg") {
+                    if (Name == "ControlFlowFlattening") {
                         FPM.addPass(ControlFlowFlatteningPass());
                         return true;
                     }
