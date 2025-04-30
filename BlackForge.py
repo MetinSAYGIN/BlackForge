@@ -9,10 +9,10 @@ PASSES_DIR = "passes"
 BUILD_DIR = "build"
 SOURCE_DIR = "sources/clair"
 OBF_DIR = "sources/obfusque"
-# Détection des fichiers .c
-source_files = [f for f in os.listdir(SOURCE_DIR) if f.endswith(".c")]
+# Détection des fichiers .c et .cpp dans sources/clair
+source_files = [f for f in os.listdir(SOURCE_DIR) if f.endswith((".c", ".cpp"))]
 if not source_files:
-    print("[!] Aucun fichier .c trouvé dans sources/clair/")
+    print("[!] Aucun fichier .c ou .cpp trouvé dans sources/clair/")
     exit(1)
 
 print("[?] Fichier source à compiler :")
@@ -22,7 +22,9 @@ for idx, fname in enumerate(source_files):
 choice = int(input("→ Choix (numéro) : "))
 SOURCE_FILE = os.path.join(SOURCE_DIR, source_files[choice])
 BASE_NAME = os.path.splitext(source_files[choice])[0]
+IS_CPP = source_files[choice].endswith(".cpp")
 print(f"[+] Fichier choisi : {SOURCE_FILE}")
+
 
 
 
@@ -63,7 +65,8 @@ os.makedirs(OBF_DIR, exist_ok=True)
 subprocess.run(f"clang -emit-llvm -S {SOURCE_FILE} -o {SOURCE_DIR}/{BASE_NAME}.ll", shell=True)
 
 # Compilation version claire
-subprocess.run(f"clang {SOURCE_FILE} -o {SOURCE_DIR}/{BASE_NAME}", shell=True)
+compiler = "clang++" if IS_CPP else "clang"
+subprocess.run(f"{compiler} {SOURCE_FILE} -o {SOURCE_DIR}/{BASE_NAME}", shell=True)
 
 # Mesure du temps clair
 print("[*] Exécution version claire...")
@@ -80,7 +83,7 @@ cmd = f"opt -load-pass-plugin {chosen_so} -passes={chosen_pass} -S {SOURCE_DIR}/
 subprocess.run(cmd, shell=True)
 
 # Compilation binaire obfusqué
-subprocess.run(f"clang {obf_ll} -o {OBF_DIR}/{BASE_NAME}", shell=True)
+subprocess.run(f"{compiler} {obf_ll} -o {OBF_DIR}/{BASE_NAME}", shell=True)
 
 # Mesure du temps obfusqué
 print("[*] Exécution version obfusquée...")
