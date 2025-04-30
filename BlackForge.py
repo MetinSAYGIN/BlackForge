@@ -92,6 +92,16 @@ obf_ll = f"{OBF_DIR}/{BASE_NAME}_obf.ll"
 cmd = f"opt -load-pass-plugin {chosen_so} -passes={chosen_pass} -S {clair_ll} -o {obf_ll}"
 subprocess.run(cmd, shell=True)
 
+with open(obf_ll, "r+") as f:
+    content = f.read()
+    content = content.replace(
+        f'source_filename = "{SOURCE_FILE}"',
+        f'source_filename = "{obf_ll}"'
+    )
+    f.seek(0)
+    f.write(content)
+    f.truncate()
+    
 # Compilation binaire obfusqué
 obf_bin = f"{OBF_DIR}/{BASE_NAME}"
 subprocess.run(f"{compiler} -O0 -fno-inline {obf_ll} -o {obf_bin}", shell=True)
