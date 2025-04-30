@@ -45,34 +45,36 @@ print(f"[+] Fichier choisi : {SOURCE_FILE}")
 
 
 
-# === Étape 1 : Compilation des passes ===
-print("[+] Compilation des passes...")
-os.makedirs(BUILD_DIR, exist_ok=True)
-
+# === Étape 1 : Sélection de la passe ===
+print("\n[?] Quelle passe veux-tu appliquer ?")
 pass_files = [f for f in os.listdir(PASSES_DIR) if f.endswith(".cpp")]
-so_files = []
 
-for pf in pass_files:
-    pass_name = pf.replace(".cpp", "")
-    so_path = f"{BUILD_DIR}/{pass_name}.so"
-    full_cmd = f"clang++ -fPIC -shared -o {so_path} {PASSES_DIR}/{pf} `llvm-config --cxxflags --ldflags --system-libs --libs core passes` -std=c++17"
-    result = subprocess.run(full_cmd, shell=True)
-    if result.returncode == 0:
-        print(f"  [OK] {pf} → {so_path}")
-        so_files.append((pass_name, so_path))
-    else:
-        print(f"  [FAIL] {pf}")
-
-if not so_files:
-    print("[!] Aucune passe compilée, arrêt.")
+if not pass_files:
+    print("[!] Aucun fichier .cpp trouvé dans le dossier 'passes'.")
     exit(1)
 
-# === Étape 2 : Sélection de la passe ===
-print("\n[?] Quelle passe veux-tu appliquer ?")
-for idx, (name, _) in enumerate(so_files):
-    print(f"  {idx}) {name}")
+# Affichage des passes disponibles
+for idx, pf in enumerate(pass_files):
+    pass_name = pf.replace(".cpp", "")
+    print(f"  {idx}) {pass_name}")
+
+# Demander le choix de la passe
 choice = int(input("→ Choix (numéro) : "))
-chosen_pass, chosen_so = so_files[choice]
+chosen_pass = pass_files[choice].replace(".cpp", "")
+chosen_so = f"{BUILD_DIR}/{chosen_pass}.so"
+
+# === Étape 2 : Compilation de la passe sélectionnée ===
+print(f"\n[+] Compilation de la passe {chosen_pass}...")
+os.makedirs(BUILD_DIR, exist_ok=True)
+
+# Compiler la passe sélectionnée
+full_cmd = f"clang++ -fPIC -shared -o {chosen_so} {PASSES_DIR}/{pass_files[choice]} `llvm-config --cxxflags --ldflags --system-libs --libs core passes` -std=c++17"
+result = subprocess.run(full_cmd, shell=True)
+
+if result.returncode == 0:
+    print(f"  [OK] {pass_files[choice]} → {chosen_so}")
+else:
+    print(f"  [FAIL] {pass_files[choice]}")
 
 # === Étape 3 : Compilation en LLVM IR puis binaire ===
 print("\n[+] Compilation du fichier source...")
