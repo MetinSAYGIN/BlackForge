@@ -1,2 +1,5 @@
 *.ll
 *.so
+/sources/obfusque/*
+!/sources/obfusque/.gitkeep
+
