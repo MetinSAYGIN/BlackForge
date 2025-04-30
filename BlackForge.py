@@ -104,7 +104,9 @@ print("\n[+] Obfuscation...")
 obf_ll = f"{OBF_DIR}/{BASE_NAME}_obf.ll"
 cmd = f"opt -load-pass-plugin {chosen_so} -passes={chosen_pass} -S {clair_ll} -o {obf_ll}"
 print(f"[+] Commande obfuscation : {cmd}")  # Afficher la commande pour vérifier qu'elle est correcte
-subprocess.run(cmd, shell=True)
+result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+if result.returncode != 0:
+    print(f"Erreur lors de l'obfuscation: {result.stderr}")
 
 with open(obf_ll, "r+") as f:
     content = f.read()
