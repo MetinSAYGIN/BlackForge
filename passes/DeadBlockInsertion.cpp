@@ -8,6 +8,7 @@
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/Intrinsics.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 using namespace llvm;
@@ -15,52 +16,63 @@ using namespace llvm;
 namespace {
 struct DeadBlockInsertionPass : public PassInfoMixin<DeadBlockInsertionPass> {
     PreservedAnalyses run(Function &F, FunctionAnalysisManager &) {
-        if (F.empty())
-            return PreservedAnalyses::all();
+        if (F.empty()) return PreservedAnalyses::all();
 
-        errs() << "[+] Insertion de dead block dans : " << F.getName() << "\n";
-
-        LLVMContext &Ctx = F.getContext();
         Module *M = F.getParent();
+        LLVMContext &Ctx = F.getContext();
 
-        // Déclaration correcte de printf
+        // 1. Préparer les éléments essentiels
         FunctionCallee PrintfFunc = M->getOrInsertFunction(
-            "printf",
-            FunctionType::get(IntegerType::getInt32Ty(Ctx),
-                            {PointerType::get(Type::getInt8Ty(Ctx), 0)},
-                            true));
+            "printf", FunctionType::get(Type::getInt32Ty(Ctx),
+                      {Type::getInt8PtrTy(Ctx)}, true));
 
-        GlobalVariable *GV = new GlobalVariable(
-            *M, ArrayType::get(Type::getInt8Ty(Ctx), 14),
-            true, GlobalValue::PrivateLinkage,
-            ConstantDataArray::getString(Ctx, "Never reached\n", true),
-            ".str.dead");
+        // 2. Créer des variables globales opaques
+        GlobalVariable *OpaqueCond = new GlobalVariable(
+            *M, Type::getInt1Ty(Ctx), false,
+            GlobalValue::PrivateLinkage,
+            ConstantInt::getTrue(Ctx), "dead_cond");
 
-        BasicBlock *DeadBlock = BasicBlock::Create(Ctx, "deadblock", &F);
-        IRBuilder<> Builder(DeadBlock);
-        
-        Value *Zero = ConstantInt::get(Type::getInt32Ty(Ctx), 0);
-        Value *GEP = Builder.CreateInBoundsGEP(GV->getValueType(), GV, 
-                                             {Zero, Zero}, "dead.str.ptr");
-        
-        Builder.CreateCall(PrintfFunc, {GEP});
-        Builder.CreateRetVoid();
+        GlobalVariable *OpaqueCounter = new GlobalVariable(
+            *M, Type::getInt32Ty(Ctx), false,
+            GlobalValue::PrivateLinkage,
+            ConstantInt::get(Type::getInt32Ty(Ctx), 0),
+            "dead_counter");
 
-        BasicBlock &EntryBB = F.getEntryBlock();
-        Instruction *FirstInst = &EntryBB.front();
+        // 3. Créer la structure du bloc mort
+        BasicBlock *EntryBB = &F.getEntryBlock();
+        BasicBlock *DeadBB = BasicBlock::Create(Ctx, "dead_block", &F);
+        BasicBlock *RealBB = EntryBB->splitBasicBlock(
+            &EntryBB->front(), "real_code");
+
+        // 4. Construction du bloc mort
+        IRBuilder<> DeadBuilder(DeadBB);
         
-        IRBuilder<> EntryBuilder(FirstInst);
-        Value *GlobalAddr = EntryBuilder.CreatePtrToInt(GV, Type::getInt64Ty(Ctx));
-        Value *Mask = EntryBuilder.getInt64(0xFFFFFFFF);
-        Value *Cond = EntryBuilder.CreateICmpEQ(
-            EntryBuilder.CreateAnd(GlobalAddr, Mask),
-            EntryBuilder.getInt64(0));
-        
-        BasicBlock *DummyBB = BasicBlock::Create(Ctx, "dummy", &F);
-        BranchInst::Create(DeadBlock, DummyBB);
-        
-        BranchInst::Create(DummyBB, &EntryBB, Cond, FirstInst);
-        FirstInst->eraseFromParent();
+        // a) Effet de bord impossible à supprimer
+        Value *FormatStr = DeadBuilder.CreateGlobalStringPtr("DEAD_BLOCK_ACTIVATED\n");
+        CallInst *PrintCall = DeadBuilder.CreateCall(PrintfFunc, {FormatStr});
+        PrintCall->setCannotBeOmitted(true);
+
+        // b) Opération mémoire opaque
+        Value *CounterVal = DeadBuilder.CreateLoad(Type::getInt32Ty(Ctx), OpaqueCounter);
+        Value *NewCounter = DeadBuilder.CreateAdd(CounterVal, DeadBuilder.getInt32(1));
+        DeadBuilder.CreateStore(NewCounter, OpaqueCounter);
+
+        // c) Boucle avec condition opaque
+        BasicBlock *LoopBB = BasicBlock::Create(Ctx, "dead_loop", &F);
+        DeadBuilder.CreateBr(LoopBB);
+
+        IRBuilder<> LoopBuilder(LoopBB);
+        Value *ShouldExit = LoopBuilder.CreateLoad(Type::getInt1Ty(Ctx), OpaqueCond);
+        LoopBuilder.CreateCondBr(ShouldExit, RealBB, LoopBB);
+
+        // 5. Modifier l'entrée originale
+        IRBuilder<> EntryBuilder(&EntryBB->front());
+        EntryBuilder.CreateStore(EntryBuilder.getInt1(false), OpaqueCond);
+        EntryBuilder.CreateBr(DeadBB);
+
+        // 6. Empêcher la suppression des éléments
+        OpaqueCond->setUnnamedAddr(GlobalValue::UnnamedAddr::None);
+        OpaqueCounter->setUnnamedAddr(GlobalValue::UnnamedAddr::None);
 
         return PreservedAnalyses::none();
     }
@@ -76,16 +88,11 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
             PB.registerPipelineParsingCallback(
                 [](StringRef Name, FunctionPassManager &FPM,
                    ArrayRef<PassBuilder::PipelineElement>) {
-                    if (Name == "DeadBlockInsertion") {
+                    if (Name == "dead-block-insert") {
                         FPM.addPass(DeadBlockInsertionPass());
                         return true;
                     }
                     return false;
-                });
-            
-            PB.registerPipelineStartEPCallback(
-                [](ModulePassManager &MPM, OptimizationLevel) {
-                    MPM.addPass(createModuleToFunctionPassAdaptor(DeadBlockInsertionPass()));
                 });
         }
     };
