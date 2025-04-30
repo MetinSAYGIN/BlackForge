@@ -42,9 +42,6 @@ BASE_NAME = os.path.splitext(source_files[choice])[0]
 IS_CPP = source_files[choice].endswith(".cpp")
 print(f"[+] Fichier choisi : {SOURCE_FILE}")
 
-
-
-
 # === Étape 1 : Sélection de la passe ===
 print("\n[?] Quelle passe veux-tu appliquer ?")
 pass_files = [f for f in os.listdir(PASSES_DIR) if f.endswith(".cpp")]
@@ -81,38 +78,45 @@ print("\n[+] Compilation du fichier source...")
 os.makedirs(OBF_DIR, exist_ok=True)
 
 # LLVM IR clair
-subprocess.run(f"clang -emit-llvm -S {SOURCE_FILE} -o {SOURCE_DIR}/{BASE_NAME}.ll", shell=True)
+clair_ll = f"{SOURCE_DIR}/{BASE_NAME}.ll"
+subprocess.run(f"clang -emit-llvm -S {SOURCE_FILE} -o {clair_ll}", shell=True)
 
 # Compilation version claire
 compiler = "clang++" if IS_CPP else "clang"
-subprocess.run(f"{compiler} {SOURCE_FILE} -o {SOURCE_DIR}/{BASE_NAME}", shell=True)
+clair_bin = f"{SOURCE_DIR}/{BASE_NAME}"
+subprocess.run(f"{compiler} {SOURCE_FILE} -o {clair_bin}", shell=True)
 
 # === Étape 4 : Obfuscation et compilation version obfusquée ===
 print("\n[+] Obfuscation...")
 obf_ll = f"{OBF_DIR}/{BASE_NAME}_obf.ll"
-cmd = f"opt -load-pass-plugin {chosen_so} -passes={chosen_pass} -S {SOURCE_DIR}/{BASE_NAME}.ll -o {obf_ll}"
+cmd = f"opt -load-pass-plugin {chosen_so} -passes={chosen_pass} -S {clair_ll} -o {obf_ll}"
 subprocess.run(cmd, shell=True)
 
 # Compilation binaire obfusqué
-subprocess.run(f"{compiler} {obf_ll} -o {OBF_DIR}/{BASE_NAME}", shell=True)
+obf_bin = f"{OBF_DIR}/{BASE_NAME}"
+subprocess.run(f"{compiler} {obf_ll} -o {obf_bin}", shell=True)
 
-entropy_clair = calculate_entropy(os.path.join(SOURCE_DIR, BASE_NAME))
-entropy_obfusque = calculate_entropy(os.path.join(OBF_DIR, BASE_NAME))
+# Calcul des métriques
+entropy_clair = calculate_entropy(clair_bin)
+entropy_obfusque = calculate_entropy(obf_bin)
 
-size_clair = os.path.getsize(os.path.join(SOURCE_DIR, BASE_NAME))
-size_obfusque = os.path.getsize(os.path.join(OBF_DIR, BASE_NAME))
+size_clair = os.path.getsize(clair_bin)
+size_obfusque = os.path.getsize(obf_bin)
+
+size_ll_clair = os.path.getsize(clair_ll)
+size_ll_obf = os.path.getsize(obf_ll)
 
 # Exécution version claire
 print("[*] Exécution version claire...")
 start = time.time()
-subprocess.run(f"{SOURCE_DIR}/{BASE_NAME}", shell=True)
+subprocess.run(clair_bin, shell=True)
 end = time.time()
 time_clair = end - start
 
 # Exécution version obfusquée
 print("[*] Exécution version obfusquée...")
 start = time.time()
-subprocess.run(f"{OBF_DIR}/{BASE_NAME}", shell=True)
+subprocess.run(obf_bin, shell=True)
 end = time.time()
 time_obf = end - start
 
@@ -120,14 +124,15 @@ time_obf = end - start
 size_variation = ((size_obfusque - size_clair) / size_clair) * 100
 time_variation = ((time_obf - time_clair) / time_clair) * 100
 entropy_variation = ((entropy_obfusque - entropy_clair) / entropy_clair) * 100
+size_ll_variation = ((size_ll_obf - size_ll_clair) / size_ll_clair) * 100
 
 # Construction du tableau avec formatage
-header = f"| {'Version':<12} | {'Taille (Ko)':<15} | {'Temps (s)':<10} | {'Entropie':<10} |"
-separator = "+" + "-"*14 + "+" + "-"*17 + "+" + "-"*12 + "+" + "-"*12 + "+"
+header = f"| {'Version':<12} | {'Taille (Ko)':<12} | {'Taille LL (Ko)':<12} | {'Temps (s)':<10} | {'Entropie':<10} |"
+separator = "+" + "-"*14 + "+" + "-"*14 + "+" + "-"*14 + "+" + "-"*12 + "+" + "-"*12 + "+"
 
-row_clair = f"| {'Clair':<12} | {size_clair / 1024:<15.2f} | {time_clair:<10.4f} | {entropy_clair:<10.4f} |"
-row_obfusque = f"| {'Obfusqué':<12} | {size_obfusque / 1024:<15.2f} | {time_obf:<10.4f} | {entropy_obfusque:<10.4f} |"
-row_variation = f"| {'Variation (%)':<12} | {size_variation:<15.2f} | {time_variation:<10.2f} | {entropy_variation:<10.2f} |"
+row_clair = f"| {'Clair':<12} | {size_clair/1024:<12.2f} | {size_ll_clair/1024:<12.2f} | {time_clair:<10.4f} | {entropy_clair:<10.4f} |"
+row_obfusque = f"| {'Obfusqué':<12} | {size_obfusque/1024:<12.2f} | {size_ll_obf/1024:<12.2f} | {time_obf:<10.4f} | {entropy_obfusque:<10.4f} |"
+row_variation = f"| {'Variation (%)':<12} | {size_variation:<12.2f} | {size_ll_variation:<12.2f} | {time_variation:<10.2f} | {entropy_variation:<10.2f} |"
 
 # Affichage du tableau
 print("\n=== 📊 Résumé comparatif ===")
@@ -141,4 +146,3 @@ print(row_variation)
 print(separator)
 
 print(f"Passe utilisée : {chosen_pass}")
-
