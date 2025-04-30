@@ -24,7 +24,7 @@ struct DeadBlockInsertionPass : public PassInfoMixin<DeadBlockInsertionPass> {
         // 1. Préparer printf correctement
         FunctionType *PrintfTy = FunctionType::get(
             Type::getInt32Ty(Ctx),
-            {Type::getInt8PtrTy(Ctx)},
+            {Type::getInt8Ty(Ctx)},
             true /* variadic */);
         
         FunctionCallee PrintfFunc = M->getOrInsertFunction("printf", PrintfTy);
