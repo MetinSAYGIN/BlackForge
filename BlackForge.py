@@ -57,7 +57,17 @@ for idx, pf in enumerate(pass_files):
     print(f"  {idx}) {pass_name}")
 
 # Demander le choix de la passe
-choice = int(input("→ Choix (numéro) : "))
+# Vérifier que l'utilisateur a choisi un index valide
+while True:
+    try:
+        choice = int(input("→ Choix (numéro) : "))
+        if 0 <= choice < len(pass_files):
+            break
+        else:
+            print("[!] Choix invalide. Veuillez entrer un numéro valide.")
+    except ValueError:
+        print("[!] Veuillez entrer un numéro valide.")
+
 chosen_pass = pass_files[choice].replace(".cpp", "")
 chosen_so = f"{BUILD_DIR}/{chosen_pass}.so"
 
@@ -67,7 +77,9 @@ os.makedirs(BUILD_DIR, exist_ok=True)
 
 # Compiler la passe sélectionnée
 full_cmd = f"clang++ -fPIC -shared -o {chosen_so} {PASSES_DIR}/{pass_files[choice]} `llvm-config --cxxflags --ldflags --system-libs --libs core passes` -std=c++17"
+print(f"[+] Commande de compilation de la passe : {full_cmd}")  # Afficher la commande pour vérifier qu'elle est correcte
 result = subprocess.run(full_cmd, shell=True)
+
 
 if result.returncode == 0:
     print(f"  [OK] {pass_files[choice]} → {chosen_so}")
