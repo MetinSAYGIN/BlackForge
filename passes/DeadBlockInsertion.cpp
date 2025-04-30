@@ -26,9 +26,10 @@ struct DeadBlockInsertionPass : public PassInfoMixin<DeadBlockInsertionPass> {
 
         // Préparation de printf
         FunctionCallee PrintfFunc = M->getOrInsertFunction(
-            "printf", FunctionType::get(IntegerType::getInt32Ty(Ctx),
-                      PointerType::get(Type::getInt8Ty(Ctx), 0),
-                      true);
+        "printf", 
+        FunctionType::get(IntegerType::getInt32Ty(Ctx),
+        {PointerType::get(Type::getInt8Ty(Ctx), 0)},
+        true /* isVarArg */);
 
         // Création d'une chaîne globale opaque
         GlobalVariable *GV = new GlobalVariable(
