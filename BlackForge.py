@@ -5,6 +5,7 @@ import subprocess
 import time
 import math
 import re
+import sys
 
 def calculate_entropy(filepath):
     with open(filepath, "rb") as f:
