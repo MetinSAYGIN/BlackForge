@@ -7,6 +7,7 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/Support/RandomNumberGenerator.h"
+#include "llvm/IR/RandomNumberGenerator.h"
 
 using namespace llvm;
 
