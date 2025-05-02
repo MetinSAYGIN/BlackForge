@@ -92,7 +92,7 @@ os.makedirs(OBF_DIR, exist_ok=True)
 
 # LLVM IR clair
 clair_ll = f"{SOURCE_DIR}/{BASE_NAME}.ll"
-subprocess.run(f"clang -emit-llvm -S -O0 {SOURCE_FILE} -o {clair_ll}", shell=True)
+subprocess.run(f"clang -emit-llvm -S -O1 -Xclang -disable-llvm-passes {SOURCE_FILE} -o {clair_ll}", shell=True)
 
 # Compilation version claire
 compiler = "clang++" if IS_CPP else "clang"
@@ -102,7 +102,7 @@ subprocess.run(f"{compiler} -O0 -fno-inline {SOURCE_FILE} -o {clair_bin}", shell
 # === Étape 4 : Obfuscation et compilation version obfusquée ===
 print("\n[+] Obfuscation...")
 obf_ll = f"{OBF_DIR}/{BASE_NAME}_obf.ll"
-cmd = f"opt -load-pass-plugin {chosen_so} -passes='{chosen_pass}' -S {clair_ll} -o {obf_ll} -disable-verify -debug-pass-manager 2> logs/obf_compil.txt"
+cmd = f"opt -load-pass-plugin {chosen_so} -passes='default<O1>,{chosen_pass}' -S {clair_ll} -o {obf_ll} -disable-verify -debug-pass-manager 2> logs/obf_compil.txt"
 print(f"[+] Commande obfuscation : {cmd}")  # Afficher la commande pour vérifier qu'elle est correcte
 result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
 if result.returncode != 0:
@@ -124,7 +124,7 @@ with open(obf_ll, "r+") as f:
     
 # Compilation binaire obfusqué
 obf_bin = f"{OBF_DIR}/{BASE_NAME}"
-subprocess.run(f"{compiler} -O1 -fno-inline {obf_ll} -o {obf_bin}", shell=True)
+subprocess.run(f"{compiler} -O1 -fno-inline -mllvm -disable-llvm-optzns {obf_ll} -o {obf_bin}", shell=True)
 
 # Calcul des métriques
 entropy_clair = calculate_entropy(clair_bin)
