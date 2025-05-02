@@ -38,7 +38,7 @@ namespace {
 // Registering the pass for LLVM 19.x
 extern "C" ::llvm::PassPluginLibraryInfo LLVM_ATTRIBUTE_WEAK llvmGetPassPluginInfo() {
     return {
-        .APIVersion = 0,
+        .APIVersion = 1,
         .PluginName = "AddUseless",
         .PluginVersion = "v0.1",
         .RegisterPassBuilderCallbacks = [](PassBuilder &PB) {
