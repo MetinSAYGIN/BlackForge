@@ -23,10 +23,10 @@ namespace {
 
 				// Force l’ajout (pour test)
 				Value *zero = builder.getInt32(0);
-				Value *sum = builder.CreateAdd(zero, zero, "useless_add");
+				Value *sum = builder.CreateAdd(zero, zero, "AddUseless");
 
 				// Empêcher la suppression : stocker dans un alloca
-				AllocaInst *alloca = new AllocaInst(Type::getInt32Ty(F.getContext()), 0, "useless_var", &*F.getEntryBlock().getFirstInsertionPt());
+				AllocaInst *alloca = new AllocaInst(Type::getInt32Ty(F.getContext()), 0, "AddUseless", &*F.getEntryBlock().getFirstInsertionPt());
 				builder.CreateStore(sum, alloca);
 
 				modified = true;
