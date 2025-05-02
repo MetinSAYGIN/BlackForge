@@ -102,30 +102,58 @@ subprocess.run(f"{compiler} -O0 -fno-inline {SOURCE_FILE} -o {clair_bin}", shell
 # === Étape 4 : Obfuscation et compilation version obfusquée ===
 print("\n[+] Obfuscation...")
 obf_ll = f"{OBF_DIR}/{BASE_NAME}_obf.ll"
-cmd = f"opt -load-pass-plugin {chosen_so} -passes='{chosen_pass}' -S {clair_ll} -o {obf_ll} -disable-verify -debug-pass-manager 2> logs/obf_compil.txt"
-print(f"[+] Commande obfuscation : {cmd}")  # Afficher la commande pour vérifier qu'elle est correcte
-result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-if result.returncode != 0:
-    print(f"Erreur lors de l'obfuscation: {result.stderr}")
 
+# 1. First strip optnone attributes if they exist
+temp_ll = f"{OBF_DIR}/temp_{BASE_NAME}.ll"
+strip_cmd = f"opt -S {clair_ll} -passes='strip-dead-prototypes' -o {temp_ll}"
+subprocess.run(strip_cmd, shell=True, check=True)
+
+# 2. Apply obfuscation pass with proper optimization handling
+cmd = (
+    f"opt -load-pass-plugin {chosen_so} "
+    f"-passes='default<O1>,{chosen_pass}' "
+    f"-S {temp_ll} -o {obf_ll} "
+    f"-debug-pass-manager 2> logs/obf_compil.txt"
+)
+print(f"[+] Commande obfuscation : {cmd}")
+
+try:
+    result = subprocess.run(cmd, shell=True, check=True, 
+                          capture_output=True, text=True)
+except subprocess.CalledProcessError as e:
+    print(f"Erreur lors de l'obfuscation: {e.stderr}")
+    # Clean up temp file
+    if os.path.exists(temp_ll):
+        os.remove(temp_ll)
+    sys.exit(1)
+
+# 3. Clean up temp file
+if os.path.exists(temp_ll):
+    os.remove(temp_ll)
+
+# 4. Update module metadata
 with open(obf_ll, "r+") as f:
     content = f.read()
     content = re.sub(r'source_filename\s*=\s*".*?"',
-                     f'source_filename = "{BASE_NAME}_obf.ll"',
-                     content)
+                   f'source_filename = "{BASE_NAME}_obf.ll"',
+                   content)
     content = re.sub(
-        r"ModuleID = '([^']+)'",  # Trouve la ligne contenant ModuleID
-        f"ModuleID = '{obf_ll}'",  # Remplace par le nouveau chemin
+        r"ModuleID = '([^']+)'",
+        f"ModuleID = '{obf_ll}'",
         content
     )
     f.seek(0)
     f.write(content)
     f.truncate()
-    
-# Compilation binaire obfusqué
-obf_bin = f"{OBF_DIR}/{BASE_NAME}"
-subprocess.run(f"{compiler} -O1 -fno-inline {obf_ll} -o {obf_bin}", shell=True)
 
+# 5. Compile obfuscated binary with matching optimization level
+obf_bin = f"{OBF_DIR}/{BASE_NAME}"
+compile_cmd = (
+    f"{compiler} -O1 -fno-inline -Wno-everything "
+    f"{obf_ll} -o {obf_bin}"
+)
+subprocess.run(compile_cmd, shell=True, check=True)
+    
 # Calcul des métriques
 entropy_clair = calculate_entropy(clair_bin)
 entropy_obfusque = calculate_entropy(obf_bin)
