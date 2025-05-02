@@ -106,7 +106,7 @@ cmd = f"opt -load-pass-plugin {chosen_so} -passes='default<O0>,{chosen_pass}' -S
 print(f"[+] Commande obfuscation : {cmd}")  # Afficher la commande pour vérifier qu'elle est correcte
 result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
 if result.returncode != 0:
-    print(f"Erreur lors de l'obfuscation: {result.stderr}")
+    print(f"Erreur lors de l'obfuscation: {result.stderr}") 
 
 with open(obf_ll, "r+") as f:
     content = f.read()
