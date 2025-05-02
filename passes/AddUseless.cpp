@@ -20,7 +20,7 @@ namespace {
             
             // Itérer sur tous les blocs de base
             for (auto &BB : F) {
-                IRBuilder<> builder(&BB);
+                IRBuilder<> builder(BB.getTerminator());
                 
                 // Ajouter des instructions inutiles avec une probabilité de 50%
                 if (distribution(generator) == 0) {
