@@ -1,45 +1,38 @@
+#include <random>
 #include "llvm/IR/PassManager.h"
 #include "llvm/Passes/PassBuilder.h"
-#include "llvm/Passes/PassPlugin.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Constants.h"
-#include "llvm/Support/RandomNumberGenerator.h"
-#include "llvm/IR/RandomNumberGenerator.h"
+#include "llvm/IR/Module.h"
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 using namespace llvm;
 
 namespace {
-struct AddUselessPass : public PassInfoMixin<AddUselessPass> {
-    PreservedAnalyses run(Function &F, FunctionAnalysisManager &FAM) {
-        Module *M = F.getParent();
-        LLVMContext &Ctx = F.getContext();
+    struct AddUseless : public PassInfoMixin<AddUseless> {
+        PreservedAnalyses run(Function &F, FunctionAnalysisManager &) {
+            // Générateur de nombres aléatoires
+            std::random_device rd;
+            std::default_random_engine generator(rd());
+            std::uniform_int_distribution<int> distribution(0, 1);
 
-        // Créer un générateur de nombres aléatoires par fonction
-        std::unique_ptr<RandomNumberGenerator> RNG = M->createRNG(F.getName());
-
-        for (auto &BB : F) {
-            // 50% de chances d'ajouter une instruction inutile
-            if (RNG->next() % 2 == 0) {
-                IRBuilder<> Builder(&BB.front());
-
-                // Crée deux constantes entières
-                Value *C1 = Builder.getInt32(42);
-                Value *C2 = Builder.getInt32(1337);
-
-                // Addition inutile
-                Value *Add = Builder.CreateAdd(C1, C2, "useless_add");
-
-                // Empêche LLVM de l'éliminer trop facilement
-                Builder.CreateCall(Intrinsic::getDeclaration(M, Intrinsic::donothing));
+            // Itérer sur tous les blocs de base (BasicBlocks)
+            for (auto &BB : F) {
+                IRBuilder<> builder(&BB);
+                
+                // Ajouter des instructions inutiles avec une probabilité de 50%
+                if (distribution(generator) == 0) {
+                    // Création d'une instruction inutile (ajout d'une addition inutile)
+                    builder.CreateAdd(builder.getInt32(0), builder.getInt32(0));
+                }
             }
-        }
 
-        return PreservedAnalyses::none(); // on modifie le code
-    }
-};
+            return PreservedAnalyses::all();
+        }
+    };
 } // namespace
 
 extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginInfo() {
@@ -52,7 +45,7 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
                 [](StringRef Name, FunctionPassManager &FPM,
                    ArrayRef<PassBuilder::PipelineElement>) {
                     if (Name == "AddUseless") {
-                        FPM.addPass(AddUselessPass());
+                        FPM.addPass(AddUseless());
                         return true;
                     }
                     return false;
