@@ -6,4 +6,5 @@
 /sources/clair/*
 !sources/clair/*.c
 !sources/clair/*.cpp
+/logs/*
 
