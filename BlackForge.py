@@ -102,11 +102,11 @@ subprocess.run(f"{compiler} -O0 -fno-inline {SOURCE_FILE} -o {clair_bin}", shell
 # === Étape 4 : Obfuscation et compilation version obfusquée ===
 print("\n[+] Obfuscation...")
 obf_ll = f"{OBF_DIR}/{BASE_NAME}_obf.ll"
-cmd = f"opt -load-pass-plugin {chosen_so} -passes='default<O0>,{chosen_pass}' -S {clair_ll} -o {obf_ll} -debug-pass-manager >> logs/obf_compil.txt"
+cmd = f"opt -load-pass-plugin {chosen_so} -passes='default<O0>,{chosen_pass}' -S {clair_ll} -o {obf_ll} -debug-pass-manager 2> logs/obf_compil.txt"
 print(f"[+] Commande obfuscation : {cmd}")  # Afficher la commande pour vérifier qu'elle est correcte
 result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
 if result.returncode != 0:
-    print(f"Erreur lors de l'obfuscation: {result.stderr}") 
+    print(f"Erreur lors de l'obfuscation: {result.stderr}")
 
 with open(obf_ll, "r+") as f:
     content = f.read()
