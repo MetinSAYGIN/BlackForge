@@ -18,17 +18,20 @@ namespace {
             
             bool modified = false;
             
-            // Itérer sur tous les blocs de base
-            for (auto &BB : F) {
-                IRBuilder<> builder(BB.getTerminator());
-                
-                // Ajouter des instructions inutiles avec une probabilité de 50%
-                if (distribution(generator) == 0) {
-                    // Création d'une instruction inutile
-                    builder.CreateAdd(builder.getInt32(0), builder.getInt32(0));
-                    modified = true;
-                }
-            }
+			for (auto &BB : F) {
+				IRBuilder<> builder(&*BB.getFirstInsertionPt());
+
+				// Force l’ajout (pour test)
+				Value *zero = builder.getInt32(0);
+				Value *sum = builder.CreateAdd(zero, zero, "useless_add");
+
+				// Empêcher la suppression : stocker dans un alloca
+				AllocaInst *alloca = new AllocaInst(Type::getInt32Ty(F.getContext()), 0, "useless_var", &*F.getEntryBlock().getFirstInsertionPt());
+				builder.CreateStore(sum, alloca);
+
+				modified = true;
+			}
+
             
             return modified ? PreservedAnalyses::none() : PreservedAnalyses::all();
         }
