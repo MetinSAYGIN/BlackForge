@@ -9,35 +9,53 @@ using namespace llvm;
 namespace {
 struct RenameFunctionsPass : public PassInfoMixin<RenameFunctionsPass> {
     bool shouldSkipFunction(Function &F) {
-        // 1. Ne pas renommer 'main'
+        // 1. Ne jamais renommer 'main'
         if (F.getName() == "main")
             return true;
 
-        // 2. Ne pas renommer les fonctions déjà préfixées
-        if (F.getName().starts_swith("obf_"))
+        // 2. Ne pas renommer les fonctions déjà obfusquées
+        if (F.getName().starts_with("obf_"))
             return true;
 
-        // 3. Ne pas renommer les fonctions externes (même si isDeclaration() échoue)
-        if (F.getLinkage() == GlobalValue::ExternalLinkage || F.getLinkage() == GlobalValue::AvailableExternallyLinkage)
+        // 3. Ne pas renommer les fonctions externes/libc (3 vérifications redondantes)
+        if (F.isDeclaration() || 
+            F.getLinkage() == GlobalValue::ExternalLinkage || 
+            F.hasExternalLinkage())
+            return true;
+
+        // 4. Protection supplémentaire pour les fonctions spéciales
+        if (F.getName().starts_with("llvm.") ||  // Fonctions intrinsèques
+            F.getName().starts_with("__"))       // Fonctions système
             return true;
 
         return false;
     }
 
     PreservedAnalyses run(Module &M, ModuleAnalysisManager &) {
+        // D'abord vérifier qu'aucune fonction critique n'est touchée
+        for (Function &F : M) {
+            if ((F.getName() == "atoi" || F.getName() == "printf") && !shouldSkipFunction(F)) {
+                errs() << "ERREUR: La fonction système '" << F.getName() 
+                       << "' serait renommée par erreur!\n";
+                return PreservedAnalyses::all();
+            }
+        }
+
+        // Ensuite appliquer le renommage
         for (Function &F : M) {
             if (shouldSkipFunction(F))
                 continue;
 
-            // Renommage sécurisé
             std::string newName = "obf_" + F.getName().str();
+            errs() << "Renommage OK: " << F.getName() << " → " << newName << "\n";
             F.setName(newName);
-            errs() << "Renamed: " << F.getName() << " → " << newName << "\n";
         }
         return PreservedAnalyses::none();
     }
 };
 } // namespace
+
+/* Le reste du code (PassPluginInfo) reste identique */
 
 extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginInfo() {
     return {
