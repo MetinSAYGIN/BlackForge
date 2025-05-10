@@ -6,6 +6,7 @@
 #include "llvm/Passes/PassPlugin.h"
 #include "llvm/Support/raw_ostream.h"
 #include <unordered_map>
+#include <set>
 
 using namespace llvm;
 
@@ -13,47 +14,86 @@ namespace {
 struct RenameFunctionsPass : public PassInfoMixin<RenameFunctionsPass> {
     bool shouldRenameFunction(Function &F) {
         // 1. La fonction DOIT avoir un corps (sinon c'est une déclaration externe)
-        // IMPORTANT: Ne pas renommer les fonctions déclarées mais non définies
-        if (F.isDeclaration())
+        // Les fonctions de bibliothèque sont généralement des déclarations externes
+        if (F.isDeclaration()) {
+            errs() << "Skipping declaration: " << F.getName() << "\n";
             return false;
+        }
             
         // 2. Ne pas renommer 'main' (optionnel, mais recommandé)
-        if (F.getName() == "main")
+        if (F.getName() == "main") {
+            errs() << "Skipping main function\n";
             return false;
+        }
             
         // 3. Ne pas renommer les fonctions déjà obfusquées
-        if (F.getName().starts_with("obf_"))
+        if (F.getName().startswith("obf_")) {
+            errs() << "Skipping already obfuscated: " << F.getName() << "\n";
             return false;
+        }
             
-        // 4. Ne pas renommer les fonctions intrinsèques LLVM (optionnel)
-        if (F.getName().starts_with("llvm."))
+        // 4. Ne pas renommer les fonctions intrinsèques LLVM
+        if (F.getName().startswith("llvm.")) {
+            errs() << "Skipping LLVM intrinsic: " << F.getName() << "\n";
             return false;
+        }
             
-        // 5. Ne pas renommer les fonctions qui sont disponibles globalement
-        // Les fonctions de bibliothèque standard ont typiquement un linkage externe
-        if (F.hasExternalLinkage() && !F.hasExactDefinition()) {
+        // 5. Liste explicite des fonctions C standard à ne JAMAIS renommer
+        // Ajout d'une liste de noms de fonctions C standard les plus courantes
+        static const std::set<std::string> cStdFunctions = {
+            // Standard I/O
+            "printf", "scanf", "puts", "gets", "putchar", "getchar", "fprintf", "fscanf",
+            "fputc", "fgetc", "fputs", "fgets", "fopen", "fclose", "fread", "fwrite",
+            "fseek", "ftell", "rewind", "fflush", "ferror", "feof", "clearerr", "remove",
+            "rename",
+            
+            // String handling
+            "strcpy", "strncpy", "strcat", "strncat", "strcmp", "strncmp", "strchr", "strrchr",
+            "strstr", "strlen", "strerror", "strspn", "strcspn", "strpbrk", "strtok",
+            
+            // Memory management
+            "malloc", "calloc", "realloc", "free", "memcpy", "memmove", "memset", "memcmp",
+            "memchr",
+            
+            // Conversion
+            "atoi", "atol", "atof", "strtol", "strtoul", "strtod", "strtof", "strtold",
+            
+            // Math
+            "sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh",
+            "exp", "log", "log10", "pow", "sqrt", "ceil", "floor", "fabs", "ldexp", "frexp",
+            "modf", "fmod",
+            
+            // Utility
+            "rand", "srand", "qsort", "bsearch", "abs", "labs", "div", "ldiv",
+            
+            // Time
+            "time", "clock", "difftime", "mktime", "asctime", "ctime", "gmtime", "localtime",
+            "strftime",
+            
+            // Environment
+            "getenv", "system", "exit", "abort",
+            
+            // Signal handling
+            "signal", "raise"
+        };
+        
+        if (cStdFunctions.find(F.getName().str()) != cStdFunctions.end()) {
+            errs() << "Skipping C standard function: " << F.getName() << "\n";
             return false;
         }
         
-        // 6. Vérifier si le nom est celui d'une fonction connue de la libc
-        // Ici, plutôt que d'utiliser une liste préétablie, on vérifie l'origine
-        // On peut examiner les métadonnées de debug pour savoir si la fonction vient
-        // d'un fichier d'en-tête système
-        if (const DISubprogram *SP = F.getSubprogram()) {
-            if (const DIFile *File = SP->getFile()) {
-                StringRef Filename = File->getFilename();
-                StringRef Directory = File->getDirectory();
-                // Si la fonction vient d'un répertoire système (/usr/include, etc.)
-                // ou d'un en-tête standard (stdio.h, stdlib.h, etc.)
-                if (Directory.contains("/usr/include") || 
-                    Directory.contains("/usr/lib") ||
-                    Filename.ends_with(".h")) {
-                    return false;
-                }
+        // 6. Vérifier si c'est une fonction utilisateur ou non
+        // Si la fonction a le type de linkage d'une fonction importée ou externe,
+        // et qu'elle n'est pas dans notre module actuel, ne pas la renommer
+        if (!F.hasLocalLinkage() && !F.hasInternalLinkage()) {
+            if (F.getParent()->getFunction(F.getName())->isDeclaration()) {
+                errs() << "Skipping external function: " << F.getName() << "\n";
+                return false;
             }
         }
             
         // Si on arrive ici, la fonction est définie dans le module et peut être renommée
+        errs() << "Will rename: " << F.getName() << "\n";
         return true;
     }
 
