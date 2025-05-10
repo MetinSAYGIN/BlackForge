@@ -22,11 +22,11 @@ struct RenameFunctionsPass : public PassInfoMixin<RenameFunctionsPass> {
             return false;
             
         // 3. Ne pas renommer les fonctions déjà obfusquées
-        if (F.getName().startswith("obf_"))
+        if (F.getName().starts_with("obf_"))
             return false;
             
         // 4. Ne pas renommer les fonctions intrinsèques LLVM (optionnel)
-        if (F.getName().startswith("llvm."))
+        if (F.getName().starts_with("llvm."))
             return false;
             
         // 5. Ne pas renommer les fonctions qui sont disponibles globalement
@@ -47,7 +47,7 @@ struct RenameFunctionsPass : public PassInfoMixin<RenameFunctionsPass> {
                 // ou d'un en-tête standard (stdio.h, stdlib.h, etc.)
                 if (Directory.contains("/usr/include") || 
                     Directory.contains("/usr/lib") ||
-                    Filename.endswith(".h")) {
+                    Filename.ends_with(".h")) {
                     return false;
                 }
             }
