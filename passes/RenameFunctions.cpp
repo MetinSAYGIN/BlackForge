@@ -27,13 +27,13 @@ struct RenameFunctionsPass : public PassInfoMixin<RenameFunctionsPass> {
         }
             
         // 3. Ne pas renommer les fonctions déjà obfusquées
-        if (F.getName().startswith("obf_")) {
+        if (F.getName().starts_with("obf_")) {
             errs() << "Skipping already obfuscated: " << F.getName() << "\n";
             return false;
         }
             
         // 4. Ne pas renommer les fonctions intrinsèques LLVM
-        if (F.getName().startswith("llvm.")) {
+        if (F.getName().starts_with("llvm.")) {
             errs() << "Skipping LLVM intrinsic: " << F.getName() << "\n";
             return false;
         }
