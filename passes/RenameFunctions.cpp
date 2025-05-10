@@ -1,11 +1,11 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
 #include "llvm/Support/raw_ostream.h"
 #include <unordered_map>
-#include <set>
 
 using namespace llvm;
 
@@ -16,26 +16,42 @@ struct RenameFunctionsPass : public PassInfoMixin<RenameFunctionsPass> {
         // IMPORTANT: Ne pas renommer les fonctions déclarées mais non définies
         if (F.isDeclaration())
             return false;
+            
         // 2. Ne pas renommer 'main' (optionnel, mais recommandé)
         if (F.getName() == "main")
             return false;
+            
         // 3. Ne pas renommer les fonctions déjà obfusquées
         if (F.getName().starts_with("obf_"))
             return false;
+            
         // 4. Ne pas renommer les fonctions intrinsèques LLVM (optionnel)
         if (F.getName().starts_with("llvm."))
             return false;
-        // 5. Ne pas renommer les fonctions de la bibliothèque standard C
-        // Liste de fonctions courantes de la libc à ne pas renommer
-        static const std::set<std::string> libc_functions = {
-            "printf", "scanf", "puts", "gets", "malloc", "calloc", "realloc", "free",
-            "atoi", "atol", "atof", "strtol", "strtod", "rand", "srand", "time",
-            "fopen", "fclose", "fread", "fwrite", "fprintf", "fscanf",
-            "strcpy", "strncpy", "strcat", "strncat", "strcmp", "strncmp",
-            "memcpy", "memmove", "memset", "memcmp"
-        };
-        if (libc_functions.find(F.getName().str()) != libc_functions.end())
+            
+        // 5. Ne pas renommer les fonctions qui sont disponibles globalement
+        // Les fonctions de bibliothèque standard ont typiquement un linkage externe
+        if (F.hasExternalLinkage() && !F.hasExactDefinition()) {
             return false;
+        }
+        
+        // 6. Vérifier si le nom est celui d'une fonction connue de la libc
+        // Ici, plutôt que d'utiliser une liste préétablie, on vérifie l'origine
+        // On peut examiner les métadonnées de debug pour savoir si la fonction vient
+        // d'un fichier d'en-tête système
+        if (const DISubprogram *SP = F.getSubprogram()) {
+            if (const DIFile *File = SP->getFile()) {
+                StringRef Filename = File->getFilename();
+                StringRef Directory = File->getDirectory();
+                // Si la fonction vient d'un répertoire système (/usr/include, etc.)
+                // ou d'un en-tête standard (stdio.h, stdlib.h, etc.)
+                if (Directory.contains("/usr/include") || 
+                    Directory.contains("/usr/lib") ||
+                    Filename.endswith(".h")) {
+                    return false;
+                }
+            }
+        }
             
         // Si on arrive ici, la fonction est définie dans le module et peut être renommée
         return true;
