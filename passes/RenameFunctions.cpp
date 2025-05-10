@@ -10,20 +10,20 @@ namespace {
 struct RenameFunctionsPass : public PassInfoMixin<RenameFunctionsPass> {
     PreservedAnalyses run(Module &M, ModuleAnalysisManager &) {
         for (Function &F : M) {
-            // Ignorer les fonctions déclarées (externes), "main" et les fonctions qui commencent déjà par "obf_"
-            if (F.isDeclaration() || F.getName() == "main" || F.getName().starts_with("obf_")) {
+            // Ne pas renommer :
+            // 1. Les déclarations externes (comme atoi, printf, etc.)
+            // 2. La fonction 'main'
+            // 3. Les fonctions déjà renommées (commençant par "obf_")
+            if (F.isDeclaration() || F.getName() == "main" || F.getName().startswith("obf_")) {
                 continue;
             }
 
-            // Générer un nouveau nom pour la fonction
+            // Renommer uniquement les fonctions définies dans ce module
             std::string oldName = F.getName().str();
             std::string newName = "obf_" + oldName;
-
-            // Renommer la fonction
             F.setName(newName);
-            errs() << "Renommé : " << oldName << " → " << newName << "\n";
+            errs() << "Renamed: " << oldName << " → " << newName << "\n";
         }
-
         return PreservedAnalyses::none();
     }
 };
