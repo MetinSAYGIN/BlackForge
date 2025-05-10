@@ -1,10 +1,8 @@
+#include "llvm/IR/PassManager.h"
+#include "llvm/Pass.h"
 #include "llvm/IR/Function.h"
-#include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Passes/PassBuilder.h"
-#include "llvm/Passes/PassPlugin.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/IR/IRBuilder.h"
 
 using namespace llvm;
 
@@ -12,12 +10,19 @@ namespace {
 struct RenameFunctionsPass : public PassInfoMixin<RenameFunctionsPass> {
     PreservedAnalyses run(Module &M, ModuleAnalysisManager &) {
         for (Function &F : M) {
-            if (F.isDeclaration()) continue;       // Ignore les fonctions externes
-            if (F.getName() == "main") continue;   // Ne pas renommer main
+            // Ignorer les fonctions déclarées (externes), et "main"
+            if (F.isDeclaration()) {
+                continue;
+            }
+            if (F.getName() == "main") {
+                continue;
+            }
 
+            // Générer un nouveau nom pour la fonction
             std::string oldName = F.getName().str();
             std::string newName = "obf_" + oldName;
 
+            // Renommer la fonction
             F.setName(newName);
             errs() << "Renommé : " << oldName << " → " << newName << "\n";
         }
