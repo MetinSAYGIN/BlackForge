@@ -14,7 +14,7 @@ struct RenameFunctionsPass : public PassInfoMixin<RenameFunctionsPass> {
             return true;
 
         // 2. Ne pas renommer les fonctions déjà préfixées
-        if (F.getName().start_swith("obf_"))
+        if (F.getName().starts_swith("obf_"))
             return true;
 
         // 3. Ne pas renommer les fonctions externes (même si isDeclaration() échoue)
