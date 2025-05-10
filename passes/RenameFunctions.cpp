@@ -1,8 +1,10 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
 #include "llvm/Support/raw_ostream.h"
+#include <unordered_map>
 
 using namespace llvm;
 
@@ -12,32 +14,58 @@ struct RenameFunctionsPass : public PassInfoMixin<RenameFunctionsPass> {
         // 1. La fonction DOIT avoir un corps (sinon c'est une déclaration externe)
         if (F.isDeclaration())
             return false;
-
         // 2. Ne pas renommer 'main' (optionnel, mais recommandé)
         if (F.getName() == "main")
             return false;
-
         // 3. Ne pas renommer les fonctions déjà obfusquées
         if (F.getName().starts_with("obf_"))
             return false;
-
         // 4. Ne pas renommer les fonctions intrinsèques LLVM (optionnel)
         if (F.getName().starts_with("llvm."))
             return false;
-
         // Si on arrive ici, la fonction est définie dans le module et peut être renommée
         return true;
     }
 
     PreservedAnalyses run(Module &M, ModuleAnalysisManager &) {
+        // Première étape: Créer une carte des fonctions à renommer et leurs nouveaux noms
+        std::unordered_map<Function*, std::string> functionRenameMap;
+        
+        // Identifier toutes les fonctions à renommer
         for (Function &F : M) {
-            if (!shouldRenameFunction(F))
-                continue;
-
-            std::string newName = "obf_" + F.getName().str();
-            errs() << "Renaming: " << F.getName() << " → " << newName << "\n";
-            F.setName(newName);
+            if (shouldRenameFunction(F)) {
+                std::string newName = "obf_" + F.getName().str();
+                functionRenameMap[&F] = newName;
+            }
         }
+        
+        // Deuxième étape: Renommer les fonctions et mettre à jour tous les appels
+        for (auto &renameInfo : functionRenameMap) {
+            Function* F = renameInfo.first;
+            std::string newName = renameInfo.second;
+            
+            errs() << "Renaming: " << F->getName() << " → " << newName << "\n";
+            
+            // Créer une nouvelle fonction avec le nouveau nom
+            Function* newF = Function::Create(F->getFunctionType(),
+                                             F->getLinkage(),
+                                             newName,
+                                             &M);
+            
+            // Copier les attributs de la fonction
+            newF->copyAttributesFrom(F);
+            
+            // Déplacer les blocs de base de l'ancienne fonction à la nouvelle
+            newF->getBasicBlockList().splice(newF->begin(), F->getBasicBlockList());
+            
+            // Remplacer tous les appels à l'ancienne fonction par des appels à la nouvelle
+            // Cela inclut également les fonctions déclarées mais non définies
+            F->replaceAllUsesWith(newF);
+            
+            // Supprimer l'ancienne fonction
+            F->eraseFromParent();
+        }
+        
         return PreservedAnalyses::none();
     }
 };
