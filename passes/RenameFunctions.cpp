@@ -8,54 +8,40 @@ using namespace llvm;
 
 namespace {
 struct RenameFunctionsPass : public PassInfoMixin<RenameFunctionsPass> {
-    bool shouldSkipFunction(Function &F) {
-        // 1. Ne jamais renommer 'main'
+    bool shouldRenameFunction(Function &F) {
+        // 1. La fonction DOIT avoir un corps (sinon c'est une déclaration externe)
+        if (F.isDeclaration())
+            return false;
+
+        // 2. Ne pas renommer 'main' (optionnel, mais recommandé)
         if (F.getName() == "main")
-            return true;
+            return false;
 
-        // 2. Ne pas renommer les fonctions déjà obfusquées
+        // 3. Ne pas renommer les fonctions déjà obfusquées
         if (F.getName().starts_with("obf_"))
-            return true;
+            return false;
 
-        // 3. Ne pas renommer les fonctions externes/libc (3 vérifications redondantes)
-        if (F.isDeclaration() || 
-            F.getLinkage() == GlobalValue::ExternalLinkage || 
-            F.hasExternalLinkage())
-            return true;
+        // 4. Ne pas renommer les fonctions intrinsèques LLVM (optionnel)
+        if (F.getName().starts_with("llvm."))
+            return false;
 
-        // 4. Protection supplémentaire pour les fonctions spéciales
-        if (F.getName().starts_with("llvm.") ||  // Fonctions intrinsèques
-            F.getName().starts_with("__"))       // Fonctions système
-            return true;
-
-        return false;
+        // Si on arrive ici, la fonction est définie dans le module et peut être renommée
+        return true;
     }
 
     PreservedAnalyses run(Module &M, ModuleAnalysisManager &) {
-        // D'abord vérifier qu'aucune fonction critique n'est touchée
         for (Function &F : M) {
-            if ((F.getName() == "atoi" || F.getName() == "printf") && !shouldSkipFunction(F)) {
-                errs() << "ERREUR: La fonction système '" << F.getName() 
-                       << "' serait renommée par erreur!\n";
-                return PreservedAnalyses::all();
-            }
-        }
-
-        // Ensuite appliquer le renommage
-        for (Function &F : M) {
-            if (shouldSkipFunction(F))
+            if (!shouldRenameFunction(F))
                 continue;
 
             std::string newName = "obf_" + F.getName().str();
-            errs() << "Renommage OK: " << F.getName() << " → " << newName << "\n";
+            errs() << "Renaming: " << F.getName() << " → " << newName << "\n";
             F.setName(newName);
         }
         return PreservedAnalyses::none();
     }
 };
 } // namespace
-
-/* Le reste du code (PassPluginInfo) reste identique */
 
 extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginInfo() {
     return {
