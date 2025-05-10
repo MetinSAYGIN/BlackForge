@@ -1,15 +1,7 @@
 #include "llvm/IR/Function.h"
-#include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/IR/IRBuilder.h"
-
-#include "llvm/IR/PassManager.h"
-#include "llvm/Pass.h"
-#include "llvm/IR/Function.h"
-#include "llvm/IR/Module.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
@@ -18,11 +10,8 @@ namespace {
 struct RenameFunctionsPass : public PassInfoMixin<RenameFunctionsPass> {
     PreservedAnalyses run(Module &M, ModuleAnalysisManager &) {
         for (Function &F : M) {
-            // Ignorer les fonctions déclarées (externes), et "main"
-            if (F.isDeclaration()) {
-                continue;
-            }
-            if (F.getName() == "main") {
+            // Ignorer les fonctions déclarées (externes), "main" et les fonctions qui commencent déjà par "obf_"
+            if (F.isDeclaration() || F.getName() == "main" || F.getName().startswith("obf_")) {
                 continue;
             }
 
@@ -35,11 +24,10 @@ struct RenameFunctionsPass : public PassInfoMixin<RenameFunctionsPass> {
             errs() << "Renommé : " << oldName << " → " << newName << "\n";
         }
 
-        return PreservedAnalyses::none(); // On modifie le module, donc rien n’est conservé
+        return PreservedAnalyses::none();
     }
 };
 } // namespace
-
 
 extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginInfo() {
     return {
@@ -58,4 +46,3 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
         }
     };
 }
-
