@@ -8,21 +8,31 @@ using namespace llvm;
 
 namespace {
 struct RenameFunctionsPass : public PassInfoMixin<RenameFunctionsPass> {
+    bool shouldSkipFunction(Function &F) {
+        // 1. Ne pas renommer 'main'
+        if (F.getName() == "main")
+            return true;
+
+        // 2. Ne pas renommer les fonctions déjà préfixées
+        if (F.getName().startswith("obf_"))
+            return true;
+
+        // 3. Ne pas renommer les fonctions externes (même si isDeclaration() échoue)
+        if (F.getLinkage() == GlobalValue::ExternalLinkage || F.getLinkage() == GlobalValue::AvailableExternallyLinkage)
+            return true;
+
+        return false;
+    }
+
     PreservedAnalyses run(Module &M, ModuleAnalysisManager &) {
         for (Function &F : M) {
-            // Ne pas renommer :
-            // 1. Les déclarations externes (comme atoi, printf, etc.)
-            // 2. La fonction 'main'
-            // 3. Les fonctions déjà renommées (commençant par "obf_")
-            if (F.isDeclaration() || F.getName() == "main" || F.getName().startswith("obf_")) {
+            if (shouldSkipFunction(F))
                 continue;
-            }
 
-            // Renommer uniquement les fonctions définies dans ce module
-            std::string oldName = F.getName().str();
-            std::string newName = "obf_" + oldName;
+            // Renommage sécurisé
+            std::string newName = "obf_" + F.getName().str();
             F.setName(newName);
-            errs() << "Renamed: " << oldName << " → " << newName << "\n";
+            errs() << "Renamed: " << F.getName() << " → " << newName << "\n";
         }
         return PreservedAnalyses::none();
     }
