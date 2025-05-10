@@ -11,7 +11,7 @@ struct RenameFunctionsPass : public PassInfoMixin<RenameFunctionsPass> {
     PreservedAnalyses run(Module &M, ModuleAnalysisManager &) {
         for (Function &F : M) {
             // Ignorer les fonctions déclarées (externes), "main" et les fonctions qui commencent déjà par "obf_"
-            if (F.isDeclaration() || F.getName() == "main" || F.getName().startswith("obf_")) {
+            if (F.isDeclaration() || F.getName() == "main" || F.getName().starts_with("obf_")) {
                 continue;
             }
 
