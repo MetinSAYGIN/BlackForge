@@ -5,6 +5,7 @@
 #include "llvm/Passes/PassPlugin.h"
 #include "llvm/Support/raw_ostream.h"
 #include <unordered_map>
+#include <set>
 
 using namespace llvm;
 
@@ -12,6 +13,7 @@ namespace {
 struct RenameFunctionsPass : public PassInfoMixin<RenameFunctionsPass> {
     bool shouldRenameFunction(Function &F) {
         // 1. La fonction DOIT avoir un corps (sinon c'est une déclaration externe)
+        // IMPORTANT: Ne pas renommer les fonctions déclarées mais non définies
         if (F.isDeclaration())
             return false;
         // 2. Ne pas renommer 'main' (optionnel, mais recommandé)
@@ -23,6 +25,18 @@ struct RenameFunctionsPass : public PassInfoMixin<RenameFunctionsPass> {
         // 4. Ne pas renommer les fonctions intrinsèques LLVM (optionnel)
         if (F.getName().starts_with("llvm."))
             return false;
+        // 5. Ne pas renommer les fonctions de la bibliothèque standard C
+        // Liste de fonctions courantes de la libc à ne pas renommer
+        static const std::set<std::string> libc_functions = {
+            "printf", "scanf", "puts", "gets", "malloc", "calloc", "realloc", "free",
+            "atoi", "atol", "atof", "strtol", "strtod", "rand", "srand", "time",
+            "fopen", "fclose", "fread", "fwrite", "fprintf", "fscanf",
+            "strcpy", "strncpy", "strcat", "strncat", "strcmp", "strncmp",
+            "memcpy", "memmove", "memset", "memcmp"
+        };
+        if (libc_functions.find(F.getName().str()) != libc_functions.end())
+            return false;
+            
         // Si on arrive ici, la fonction est définie dans le module et peut être renommée
         return true;
     }
