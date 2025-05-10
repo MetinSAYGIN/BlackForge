@@ -22,11 +22,11 @@ struct RenameFunctionsPass : public PassInfoMixin<RenameFunctionsPass> {
             return false;
             
         // 3. Ne pas renommer les fonctions déjà obfusquées
-        if (F.getName().starts_with("obf_"))
+        if (F.getName().startswith("obf_"))
             return false;
             
         // 4. Ne pas renommer les fonctions intrinsèques LLVM (optionnel)
-        if (F.getName().starts_with("llvm."))
+        if (F.getName().startswith("llvm."))
             return false;
             
         // 5. Ne pas renommer les fonctions qui sont disponibles globalement
@@ -86,10 +86,10 @@ struct RenameFunctionsPass : public PassInfoMixin<RenameFunctionsPass> {
             newF->copyAttributesFrom(F);
             
             // Déplacer les blocs de base de l'ancienne fonction à la nouvelle
-            newF->getBasicBlockList().splice(newF->begin(), F->getBasicBlockList());
+            // Utiliser la méthode correcte pour manipuler les blocs de base
+            newF->splice(newF->begin(), F);
             
             // Remplacer tous les appels à l'ancienne fonction par des appels à la nouvelle
-            // Cela inclut également les fonctions déclarées mais non définies
             F->replaceAllUsesWith(newF);
             
             // Supprimer l'ancienne fonction
