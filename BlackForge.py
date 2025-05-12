@@ -589,10 +589,10 @@ run_with_metrics(f"clang -emit-llvm -S -O1 {source_file} -o {clair_ll}")
 
 print(f"\n[+] Compilation du binaire clair sans optimisations...")
 print(f"clang -O1 -fno-inline -Xclang -disable-llvm-passes {source_file} -o {clair_bin}")
-run_with_metrics(f"clang -O1 -fno-inline -Xclang -disable-llvm-passes {source_file} -o {clair_bin}")
+run_with_metrics(f"clang -O1 -fno-inline -Xclang {source_file} -o {clair_bin}")
 
 print("\n[+] Application de la passe d'obfuscation avec debug...")
-cmd = f"opt -load-pass-plugin {pass_so} -passes='{pass_name}' -S {clair_ll} -o {obf_ll} -disable-verify -debug-pass-manager"
+cmd = f"opt -load-pass-plugin {pass_so} -passes='{pass_name}' -S {clair_ll} -o {obf_ll} -debug-pass-manager"
 
 print(cmd)
 run_with_metrics(cmd, debug=True)
