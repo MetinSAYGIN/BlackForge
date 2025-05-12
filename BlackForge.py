@@ -556,7 +556,7 @@ def collect_metrics(bin_path):
     return {
         "size": os.path.getsize(bin_path),
         "entropy": calculate_entropy(bin_path),
-        metrics_result["execution"]["elapsed_seconds"],
+        "size": metrics["execution"]["elapsed_seconds"],
         "cpu": metrics["system"]["cpu"]["percent"]["delta"]
     }
 
