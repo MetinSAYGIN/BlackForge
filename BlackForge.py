@@ -514,8 +514,10 @@ print(f"\n[+] Compilation de la passe {pass_name}...")
 cmd = f"clang++ -fPIC -shared {os.path.join(PASSES_DIR, passes[pass_choice])} " \
       f"-o {pass_so} `llvm-config --cxxflags --ldflags --system-libs --libs core passes` -std=c++17"
 result = run_with_metrics(cmd)
-if not result or result['returncode'] != 0:
+if result.returncode != 0:
+    print(f"[!] Command failed with error code {result.returncode}")
     exit(1)
+
 
 # ===== Traitement selon le type de cible =====
 if is_project:
