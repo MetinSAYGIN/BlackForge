@@ -119,6 +119,8 @@ def run_with_metrics(command: Union[str, List[str]],
     else:
         elapsed = time.time() - start_time
     
+    if elapsed is None:
+        elapsed = 0.0
     # Construction du résultat complet
     result = {
         "command": cmd_str,
@@ -147,6 +149,7 @@ def run_with_metrics(command: Union[str, List[str]],
             log_f.write(f"Erreur: {stderr}\n")
             log_f.write(f"Temps écoulé: {elapsed:.2f}s\n")
             log_f.write(f"{'-' * 60}\n")
+    
     
     return result
 
