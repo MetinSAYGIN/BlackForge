@@ -592,13 +592,13 @@ print(f"clang -O1 -fno-inline -Xclang -disable-llvm-passes {source_file} -o {cla
 run_with_metrics(f"clang -O1 -fno-inline -Xclang {source_file} -o {clair_bin}")
 
 print("\n[+] Application de la passe d'obfuscation avec debug...")
-cmd = f"opt -load-pass-plugin {pass_so} -passes='{pass_name}' -S {clair_ll} -o {obf_ll} -debug-pass-manager"
+cmd = f"opt -load-pass-plugin {pass_so} -passes='{pass_name}' -S {clair_ll} -o {obf_ll} "
 
 print(cmd)
 run_with_metrics(cmd, debug=True)
 
 print(f"\n[+] Compilation du fichier obfusqué sans optimisations...")
-compile_cmd = f"clang -O1 -fno-inline -Xclang -disable-llvm-passes {obf_ll} -o {obf_bin}"
+compile_cmd = f"clang -O1 -fno-inline -Xclang {obf_ll} -o {obf_bin}"
 print(compile_cmd)
 
 # Exécution avec capture des sorties
