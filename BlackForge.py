@@ -438,31 +438,6 @@ def compare_binaries(original_path: str, modified_path: str,
     return results
 
 
-def _print_metrics_summary(metrics: Dict[str, Any]) -> None:
-    """Affiche un résumé formaté des métriques d'exécution"""
-    status = "✓" if metrics["execution"]["success"] else "✗" 
-    desc = f" - {metrics['description']}" if metrics.get('description') else ""
-    
-    print(f"\n{'-' * 60}")
-    print(f"Résultat: {status} (code: {metrics['execution']['returncode']}){desc}")
-    print(f"Temps: {metrics['execution']['elapsed_seconds']:.3f}s")
-    
-    if 'system' in metrics:
-        if 'cpu' in metrics['system']:
-            print(f"CPU: {metrics['system']['cpu']['percent']['delta']:.1f}% (variation)")
-        
-        if 'memory' in metrics['system']:
-            mem_delta = metrics['system']['memory']['used_percent']['delta']
-            mem_sign = "+" if mem_delta > 0 else ""
-            print(f"Mémoire: {mem_sign}{mem_delta:.1f}% (variation d'utilisation)")
-    
-    if metrics["execution"]["timed_out"]:
-        print(f"[!] TIMEOUT après {metrics['execution']['elapsed_seconds']:.1f}s")
-    
-    if not metrics["execution"]["success"]:
-        print(f"[!] Erreur: {metrics['output']['stderr'][:250]}{'...' if len(metrics['output']['stderr']) > 250 else ''}")
-
-
 # ===== Configuration des chemins =====
 PASSES_DIR = "passes"
 BUILD_DIR = "build"
@@ -514,8 +489,8 @@ print(f"\n[+] Compilation de la passe {pass_name}...")
 cmd = f"clang++ -fPIC -shared {os.path.join(PASSES_DIR, passes[pass_choice])} " \
       f"-o {pass_so} `llvm-config --cxxflags --ldflags --system-libs --libs core passes` -std=c++17"
 result = run_with_metrics(cmd)
-if result.returncode != 0:
-    print(f"[!] Command failed with error code {result.returncode}")
+if result["execution"]["returncode"] != 0:
+    print(f"[!] Command failed with error code {result[execution][returncode]}")
     exit(1)
 
 
