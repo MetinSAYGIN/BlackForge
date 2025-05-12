@@ -95,7 +95,7 @@ def run_with_metrics(command: Union[str, List[str]],
         if debug:
             # Mode debug avec capture spécifique des logs
             with open(OBF_COMPIL_LOG, 'a') as debug_log:
-                debug_log.write("\n" + "="*80 + "\n")
+                debug_log.write("\n" + "="*150 + "\n")
                 debug_log.write(f"DEBUG - {datetime.now()}\n")
                 debug_log.write(f"Commande: {cmd_str}\n")
                 debug_log.write("="*80 + "\n")
