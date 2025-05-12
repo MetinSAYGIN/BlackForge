@@ -50,6 +50,7 @@ def setup_project_environment(project_path, pass_so, pass_name):
                 return True
     return False
 
+
 def run_with_metrics(command: Union[str, List[str]], 
                     cwd: Optional[str] = None,
                     timeout: Optional[float] = None,
@@ -60,28 +61,8 @@ def run_with_metrics(command: Union[str, List[str]],
                     log_file: Optional[str] = None) -> Dict[str, Any]:
     """
     Exécute une commande et mesure les ressources et performances.
-    
-    Args:
-        command: La commande à exécuter (chaîne ou liste)
-        cwd: Répertoire de travail pour l'exécution
-        timeout: Temps maximum d'exécution en secondes
-        env: Variables d'environnement supplémentaires
-        description: Description explicite de l'opération 
-        check_output: Vérifier la sortie pour erreurs
-        verbose: Afficher les informations pendant l'exécution
-        log_file: Chemin du fichier pour journaliser les métriques
-    
-    Returns:
-        Un dictionnaire contenant les métriques et résultats d'exécution
-        avec la structure compatible avec le code existant:
-        {
-            "time": temps_d'exécution,
-            "returncode": code_de_retour,
-            "output": stdout,
-            ...autres métriques supplémentaires...
-        }
     """
-    # Préparation pour le logging
+    # Préparation pour la journalisation
     log_dir = LOG_DIR
     if log_file:
         log_dir = os.path.dirname(log_file)
@@ -92,25 +73,6 @@ def run_with_metrics(command: Union[str, List[str]],
     cmd_str = command if isinstance(command, str) else " ".join(shlex.quote(str(arg)) for arg in command)
     
     # Récupérer les métriques système avant l'exécution
-    start_disk_io = psutil.disk_io_counters() if hasattr(psutil, 'disk_io_counters') else None
-    start_mem = psutil.virtual_memory()
-    cpu_times_start = psutil.cpu_times()
-    
-    # Mesure de l'utilisation CPU au démarrage (moyenne sur 0.1s)
-    cpu_percent_start = psutil.cpu_percent(interval=0.1)
-    
-    # Préparation de l'environnement
-    process_env = os.environ.copy()
-    if env:
-        process_env.update(env)
-    
-    # Affichage de départ
-    if verbose:
-        if description:
-            print(f"\n[+] {description}")
-        print(f"[*] Exécution: {cmd_str}")
-    
-    # Capture du temps de départ
     start_time = time.time()
     start_datetime = datetime.now().isoformat()
     
@@ -127,7 +89,7 @@ def run_with_metrics(command: Union[str, List[str]],
             command,
             shell=isinstance(command, str),
             cwd=cwd,
-            env=process_env,
+            env=env,
             capture_output=True,
             text=True,
             timeout=timeout
@@ -157,58 +119,6 @@ def run_with_metrics(command: Union[str, List[str]],
     else:
         elapsed = time.time() - start_time
     
-    # Récupérer les métriques système après l'exécution
-    end_disk_io = psutil.disk_io_counters() if hasattr(psutil, 'disk_io_counters') else None
-    end_mem = psutil.virtual_memory()
-    cpu_times_end = psutil.cpu_times()
-    cpu_percent_end = psutil.cpu_percent(interval=0.1)
-    
-    # Calcul des différences de métriques système
-    system_metrics = {
-        "platform": platform.platform(),
-        "cpu": {
-            "count": psutil.cpu_count(),
-            "percent": {
-                "start": cpu_percent_start,
-                "end": cpu_percent_end,
-                "delta": cpu_percent_end - cpu_percent_start
-            },
-            "times": {
-                "user": cpu_times_end.user - cpu_times_start.user,
-                "system": cpu_times_end.system - cpu_times_start.system,
-                "idle": cpu_times_end.idle - cpu_times_start.idle
-            }
-        },
-        "memory": {
-            "total_mb": start_mem.total / (1024**2),
-            "available_mb": {
-                "start": start_mem.available / (1024**2),
-                "end": end_mem.available / (1024**2),
-                "delta": (end_mem.available - start_mem.available) / (1024**2)
-            },
-            "used_percent": {
-                "start": start_mem.percent,
-                "end": end_mem.percent,
-                "delta": end_mem.percent - start_mem.percent
-            }
-        }
-    }
-    
-    # Ajout des métriques d'I/O si disponibles
-    if start_disk_io and end_disk_io:
-        system_metrics["disk_io"] = {
-            "read_mb": (end_disk_io.read_bytes - start_disk_io.read_bytes) / (1024**2),
-            "write_mb": (end_disk_io.write_bytes - start_disk_io.write_bytes) / (1024**2),
-            "read_count": end_disk_io.read_count - start_disk_io.read_count,
-            "write_count": end_disk_io.write_count - start_disk_io.write_count
-        }
-    
-    # Détermination du succès de l'exécution
-    success = returncode == 0 and not timed_out
-    if not success and check_output and stderr:
-        if verbose:
-            print(f"[!] Erreur: {stderr[:500]}{'...' if len(stderr) > 500 else ''}")
-    
     # Construction du résultat complet
     result = {
         "command": cmd_str,
@@ -218,33 +128,27 @@ def run_with_metrics(command: Union[str, List[str]],
             "start_time": start_datetime,
             "elapsed_seconds": elapsed,
             "returncode": returncode,
-            "success": success,
+            "success": returncode == 0,
             "timed_out": timed_out,
             "error": error_msg
         },
-        "system": system_metrics,
         "output": {
             "stdout": stdout,
             "stderr": stderr,
-            "stdout_lines": len(stdout.splitlines()) if stdout else 0,
-            "stderr_lines": len(stderr.splitlines()) if stderr else 0
-        },
-        # Compatibilité avec le code existant
-        "time": elapsed,
-        "returncode": returncode,
-        "output": stdout
+        }
     }
     
-    # Affichage du résultat si verbose
-    if verbose:
-        _print_metrics_summary(result)
-    
-    # Journalisation des métriques si demandé
+    # Journalisation des résultats dans le fichier spécifié
     if log_file:
-        _append_to_log(result, log_file)
+        with open(log_file, 'a') as log_f:
+            log_f.write(f"{datetime.now()} - {cmd_str}\n")
+            log_f.write(f"Retour du code: {returncode}\n")
+            log_f.write(f"Sortie standard:\n{stdout}\n")
+            log_f.write(f"Erreur: {stderr}\n")
+            log_f.write(f"Temps écoulé: {elapsed:.2f}s\n")
+            log_f.write(f"{'-' * 60}\n")
     
     return result
-
 
 def run_batch_with_metrics(commands: List[Dict], 
                          global_timeout: Optional[float] = None,
