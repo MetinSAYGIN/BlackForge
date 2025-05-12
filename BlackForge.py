@@ -647,23 +647,23 @@ else:
     obf_ll = os.path.join(obf_dir, f"{base_name}_obf.ll")
     obf_bin = os.path.join(obf_dir, base_name)
 
-    # Compilation originale
-    print("\n[+] Compilation du fichier source...")
-    
-    print(f"clang -emit-llvm -S -O1 -Xclang -disable-llvm-passes {source_file} -o {clair_ll}")
-    run_with_metrics(f"clang -emit-llvm -S -O1 -Xclang -disable-llvm-passes {source_file} -o {clair_ll}")
-    
-    print(f"clang -O1 {source_file} -o {clair_bin}")
-    run_with_metrics(f"clang -O1 {source_file} -o {clair_bin}")
+print("\n[+] Compilation en LLVM IR sans optimisation...")
+print(f"clang -emit-llvm -S -O0 {source_file} -o {clair_ll}")
+run_with_metrics(f"clang -emit-llvm -S -O0 {source_file} -o {clair_ll}")
 
-    # Obfuscation
-    print("\n[+] Application de la passe d'obfuscation...")
-    cmd = f"opt -load-pass-plugin {pass_so} -passes='{pass_name}' -S {clair_ll} -o {obf_ll}"
-    print(cmd)
-    run_with_metrics(cmd)
-    
-    # Compilation finale
-    run_with_metrics(f"clang -O1 -fno-inline -mllvm -disable-llvm-optzns {obf_ll} -o {obf_bin}")
+print(f"\n[+] Compilation du binaire clair sans optimisations...")
+print(f"clang -O0 -fno-inline -Xclang -disable-llvm-passes {source_file} -o {clair_bin}")
+run_with_metrics(f"clang -O0 -fno-inline -Xclang -disable-llvm-passes {source_file} -o {clair_bin}")
+
+print("\n[+] Application de la passe d'obfuscation...")
+cmd = f"opt -load-pass-plugin {pass_so} -passes='{pass_name}' -S {clair_ll} -o {obf_ll}"
+print(cmd)
+run_with_metrics(cmd)
+
+print(f"\n[+] Compilation du fichier obfusqué sans optimisations...")
+print(f"clang -O0 -fno-inline -Xclang -disable-llvm-passes {obf_ll} -o {obf_bin}")
+run_with_metrics(f"clang -O0 -fno-inline -Xclang -disable-llvm-passes {obf_ll} -o {obf_bin}")
+
 
 # ===== Analyse des résultats =====
 
