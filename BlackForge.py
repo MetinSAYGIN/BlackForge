@@ -7,7 +7,6 @@ import math
 import re
 import shutil
 from pathlib import Path
-import math
 import psutil
 import platform
 import json
@@ -15,7 +14,6 @@ import shlex
 import signal
 from datetime import datetime
 from typing import Dict, List, Optional, Union, Any, Tuple
-from pathlib import Path
 
 
 def calculate_entropy(filepath):
@@ -759,7 +757,7 @@ variations = {
     "size": calc_percentage_change(metrics_clair["size"], metrics_obf["size"]),
     "time": calc_percentage_change(metrics_clair["time"], metrics_obf["time"]),
     "entropy": calc_percentage_change(metrics_clair["entropy"], metrics_obf["entropy"]),
-    "cpu": calc_percentage_change(clair_metrics["cpu"], metrics_obf["cpu"])
+    "cpu": calc_percentage_change(metrics_clair["cpu"], metrics_obf["cpu"])
 
 }
 
