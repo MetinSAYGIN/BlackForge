@@ -476,6 +476,7 @@ BUILD_DIR = "build"
 SOURCE_DIR = "sources/clair"
 OBF_DIR = "sources/obfusque"
 LOG_DIR = "logs"
+OBF_COMPIL_LOG = os.path.join(LOG_DIR, "obf_compil.txt")
 
 os.makedirs(BUILD_DIR, exist_ok=True)
 os.makedirs(OBF_DIR, exist_ok=True)
@@ -575,8 +576,29 @@ run_with_metrics(cmd)
 
 print(f"\n[+] Compilation du fichier obfusqué sans optimisations...")
 print(f"clang -O0 -fno-inline -Xclang -disable-llvm-passes {obf_ll} -o {obf_bin}")
-run_with_metrics(f"clang -O0 -fno-inline -Xclang -disable-llvm-passes {obf_ll} -o {obf_bin}")
+compil_result = run_with_metrics(
+    f"clang -O0 -fno-inline -Xclang -disable-llvm-passes {obf_ll} -o {obf_bin}",
+    log_file=OBF_COMPIL_LOG
+)
 
+# Ajout d'un en-tête clair dans le fichier de log
+with open(OBF_COMPIL_LOG, 'a') as log_f:
+    log_f.write("\n" + "="*60 + "\n")
+    log_f.write(f"COMPILATION FINALE DU BINAIRE OBFUSQUÉ - {datetime.now()}\n")
+    log_f.write("="*60 + "\n\n")
+    log_f.write(f"Fichier source: {source_file}\n")
+    log_f.write(f"Passe d'obfuscation: {pass_name}\n")
+    log_f.write(f"Fichier LLVM obfusqué: {obf_ll}\n")
+    log_f.write(f"Binaire généré: {obf_bin}\n\n")
+    log_f.write(f"Commande utilisée: clang -O0 -fno-inline -Xclang -disable-llvm-passes {obf_ll} -o {obf_bin}\n\n")
+    log_f.write(f"Résultat de la compilation:\n")
+    log_f.write(f"Code de retour: {compil_result['execution']['returncode']}\n")
+    log_f.write(f"Sortie standard:\n{compil_result['output']['stdout']}\n")
+    log_f.write(f"Erreurs:\n{compil_result['output']['stderr']}\n")
+    log_f.write(f"Temps d'exécution: {compil_result['execution']['elapsed_seconds']:.2f}s\n")
+    log_f.write("\n" + "="*60 + "\n\n")
+
+print(f"[+] Logs de compilation enregistrés dans {OBF_COMPIL_LOG}")
 
 # ===== Analyse des résultats =====
 
