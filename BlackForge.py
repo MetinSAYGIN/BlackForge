@@ -128,8 +128,27 @@ if IS_PROJECT:
     clair_ll = os.path.join(PROJECT_PATH, f"{BASE_NAME}.ll")
     clair_bin = os.path.join(PROJECT_PATH, BASE_NAME)
 else:
-    clair_ll = FILE_PATH
-    clair_bin = BASE_NAME
+    FILE_NAME = source_choices[choice]
+    FILE_PATH = os.path.join(SOURCE_DIR, FILE_NAME)
+    IS_PROJECT = False
+    BASE_NAME = FILE_NAME.replace(".c", "")
+    PROJECT_NAME = BASE_NAME  # pour unifier le nom des dossiers obfusqués
+
+    clair_ll = os.path.join(SOURCE_DIR, f"{BASE_NAME}.ll")
+    clair_bin = os.path.join(SOURCE_DIR, BASE_NAME)
+
+    print(f"[+] Compilation en LLVM IR du fichier {FILE_NAME}...")
+    result = subprocess.run(f"clang -S -emit-llvm {FILE_PATH} -o {clair_ll}", shell=True)
+    if result.returncode != 0:
+        print("[!] Échec compilation LLVM IR clair")
+        exit(1)
+
+    print(f"[+] Compilation binaire clair à partir de {clair_ll}...")
+    result = subprocess.run(f"clang {clair_ll} -o {clair_bin}", shell=True)
+    if result.returncode != 0:
+        print("[!] Échec compilation du binaire clair")
+        exit(1)
+
 
 # === Étape 5 : Obfuscation ===
 print("\n[+] Obfuscation...")
