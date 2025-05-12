@@ -63,6 +63,7 @@ def run_with_metrics(command: Union[str, List[str]],
     Exécute une commande et mesure les ressources et performances.
     """
     # Préparation pour la journalisation
+    
     log_dir = LOG_DIR
     if log_file:
         log_dir = os.path.dirname(log_file)
@@ -83,8 +84,14 @@ def run_with_metrics(command: Union[str, List[str]],
     timed_out = False
     error_msg = None
     
+    cpu_start = cpu_end = 0
+    mem_start = mem_end = 0
+    
     try:
-        # Exécution de la commande
+        # Mesurer avant l'exécution
+        cpu_start = psutil.cpu_percent(interval=None)
+        mem_start = psutil.virtual_memory().percent
+        
         process = subprocess.run(
             command,
             shell=isinstance(command, str),
@@ -95,6 +102,8 @@ def run_with_metrics(command: Union[str, List[str]],
             timeout=timeout
         )
         
+        cpu_end = psutil.cpu_percent(interval=None)
+        mem_end = psutil.virtual_memory().percent
         # Récupération des résultats
         stdout = process.stdout
         stderr = process.stderr
@@ -108,6 +117,8 @@ def run_with_metrics(command: Union[str, List[str]],
         stderr += f"\n[TIMEOUT] La commande a dépassé le délai de {timeout} secondes"
         returncode = -1
         error_msg = f"Timeout après {timeout}s"
+        cpu_end = psutil.cpu_percent(interval=None)
+        mem_end = psutil.virtual_memory().percent
         
     except Exception as e:
         elapsed = time.time() - start_time
@@ -115,6 +126,8 @@ def run_with_metrics(command: Union[str, List[str]],
         stderr = f"Erreur d'exécution: {str(e)}"
         returncode = -2
         error_msg = str(e)
+        cpu_end = psutil.cpu_percent(interval=None)
+        mem_end = psutil.virtual_memory().percent
         
     else:
         elapsed = time.time() - start_time
@@ -568,12 +581,12 @@ run_with_metrics(f"clang -O0 -fno-inline -Xclang -disable-llvm-passes {obf_ll} -
 # ===== Analyse des résultats =====
 
 def collect_metrics(bin_path):
-    metrics = run_with_metrics(f"./{os.path.basename(bin_path)}", cwd=os.path.dirname(bin_path), verbose=False)
+    metrics_result = run_with_metrics(f"./{os.path.basename(bin_path)}", cwd=os.path.dirname(bin_path), verbose=False)
     return {
         "size": os.path.getsize(bin_path),
         "entropy": calculate_entropy(bin_path),
-        "size": metrics["execution"]["elapsed_seconds"],
-        "cpu": metrics["system"]["cpu"]["percent"]["delta"]
+        "time": metrics_result["execution"]["elapsed_seconds"],
+        "cpu": metrics_result["system"]["cpu"]["percent"]["delta"] if "system" in metrics_result else 0
     }
 
 # Collecte des métriques
