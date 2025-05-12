@@ -737,14 +737,13 @@ else:
 
 # ===== Analyse des résultats =====
 
-def collect_metrics(binary_path):
-    """Collecte les métriques : taille, entropie, temps et CPU."""
-    run_result = run_with_metrics(f"./{os.path.basename(binary_path)}", cwd=os.path.dirname(binary_path))
+def collect_metrics(bin_path):
+    metrics = run_with_metrics(f"./{os.path.basename(bin_path)}", cwd=os.path.dirname(bin_path), verbose=False)
     return {
-        "size": os.path.getsize(binary_path),
-        "entropy": calculate_entropy(binary_path),
-        "time": run_result["time"],
-        "cpu": run_result["cpu"]
+        "size": os.path.getsize(bin_path),
+        "entropy": calculate_entropy(bin_path),
+        "time": metrics["time"],
+        "cpu": metrics["system"]["cpu"]["percent"]["delta"]
     }
 
 # Collecte des métriques
@@ -760,7 +759,8 @@ variations = {
     "size": calc_percentage_change(metrics_clair["size"], metrics_obf["size"]),
     "time": calc_percentage_change(metrics_clair["time"], metrics_obf["time"]),
     "entropy": calc_percentage_change(metrics_clair["entropy"], metrics_obf["entropy"]),
-    "cpu": calc_percentage_change(metrics_clair["cpu"], metrics_obf["cpu"])
+    "cpu": calc_variation(clair_metrics["cpu"], obf_metrics["cpu"])
+
 }
 
 # ===== Affichage des résultats =====
@@ -771,7 +771,7 @@ print("| Métrique       | Binaire clair  | Binaire obfusqué |")
 print("+----------------+----------------+----------------+")
 print(f"| Taille (Ko)    | {metrics_clair['size'] / 1024:14.2f} | {metrics_obf['size'] / 1024:14.2f} |")
 print(f"| Temps (s)      | {metrics_clair['time']:14.4f} | {metrics_obf['time']:14.4f} |")
-print(f"| CPU (%)        | {metrics_clair['cpu']:14.2f} | {metrics_obf['cpu']:14.2f} |")
+print(f"| CPU (%)       | {clair_metrics['cpu']:14.2f} | {obf_metrics['cpu']:14.2f} |")
 print(f"| Entropie       | {metrics_clair['entropy']:14.4f} | {metrics_obf['entropy']:14.4f} |")
 print("+----------------+----------------+----------------+")
 print("| Variation (%)  |")
