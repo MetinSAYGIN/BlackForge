@@ -561,44 +561,46 @@ else:
     obf_ll = os.path.join(obf_dir, f"{base_name}_obf.ll")
     obf_bin = os.path.join(obf_dir, base_name)
 
-print("\n[+] Compilation en LLVM IR sans optimisation...")
-print(f"clang -emit-llvm -S -O0 {source_file} -o {clair_ll}")
-run_with_metrics(f"clang -emit-llvm -S -O0 {source_file} -o {clair_ll}")
-
-print(f"\n[+] Compilation du binaire clair sans optimisations...")
-print(f"clang -O0 -fno-inline -Xclang -disable-llvm-passes {source_file} -o {clair_bin}")
-run_with_metrics(f"clang -O0 -fno-inline -Xclang -disable-llvm-passes {source_file} -o {clair_bin}")
-
-print("\n[+] Application de la passe d'obfuscation...")
-cmd = f"opt -load-pass-plugin {pass_so} -passes='{pass_name}' -S {clair_ll} -o {obf_ll}"
-print(cmd)
-run_with_metrics(cmd)
-
 print(f"\n[+] Compilation du fichier obfusqué sans optimisations...")
-print(f"clang -O0 -fno-inline -Xclang -disable-llvm-passes {obf_ll} -o {obf_bin}")
-compil_result = run_with_metrics(
-    f"clang -O0 -fno-inline -Xclang -disable-llvm-passes {obf_ll} -o {obf_bin}",
-    log_file=OBF_COMPIL_LOG
-)
+compile_cmd = f"clang -O0 -fno-inline -Xclang -disable-llvm-passes {obf_ll} -o {obf_bin}"
+print(compile_cmd)
 
-# Ajout d'un en-tête clair dans le fichier de log
+# Exécution avec capture des sorties
+compil_result = run_with_metrics(compile_cmd)
+
+# Journalisation détaillée
 with open(OBF_COMPIL_LOG, 'a') as log_f:
-    log_f.write("\n" + "="*60 + "\n")
-    log_f.write(f"COMPILATION FINALE DU BINAIRE OBFUSQUÉ - {datetime.now()}\n")
-    log_f.write("="*60 + "\n\n")
-    log_f.write(f"Fichier source: {source_file}\n")
-    log_f.write(f"Passe d'obfuscation: {pass_name}\n")
-    log_f.write(f"Fichier LLVM obfusqué: {obf_ll}\n")
-    log_f.write(f"Binaire généré: {obf_bin}\n\n")
-    log_f.write(f"Commande utilisée: clang -O0 -fno-inline -Xclang -disable-llvm-passes {obf_ll} -o {obf_bin}\n\n")
-    log_f.write(f"Résultat de la compilation:\n")
-    log_f.write(f"Code de retour: {compil_result['execution']['returncode']}\n")
-    log_f.write(f"Sortie standard:\n{compil_result['output']['stdout']}\n")
-    log_f.write(f"Erreurs:\n{compil_result['output']['stderr']}\n")
-    log_f.write(f"Temps d'exécution: {compil_result['execution']['elapsed_seconds']:.2f}s\n")
-    log_f.write("\n" + "="*60 + "\n\n")
+    log_f.write("\n" + "="*80 + "\n")
+    log_f.write(f"COMPILATION OBFUSQUÉE - {datetime.now()}\n")
+    log_f.write("="*80 + "\n")
+    log_f.write(f"Commande: {compile_cmd}\n\n")
+    
+    # En-tête des résultats
+    log_f.write("=== RÉSULTATS ===\n")
+    log_f.write(f"Code retour: {compil_result['execution']['returncode']}\n")
+    log_f.write(f"Succès: {'OUI' if compil_result['execution']['success'] else 'NON'}\n")
+    log_f.write(f"Durée: {compil_result['execution']['elapsed_seconds']:.2f}s\n\n")
+    
+    # Sortie standard
+    log_f.write("=== SORTIE STANDARD (stdout) ===\n")
+    log_f.write(compil_result['output']['stdout'] if compil_result['output']['stdout'] else "(vide)\n")
+    log_f.write("\n")
+    
+    # Sortie d'erreur - partie importante
+    log_f.write("=== SORTIE D'ERREUR (stderr) ===\n")
+    if compil_result['output']['stderr']:
+        log_f.write(compil_result['output']['stderr'])
+        if compil_result['execution']['returncode'] != 0:
+            log_f.write("\n\n[ERREUR] La compilation a échoué !\n")
+    else:
+        log_f.write("(aucune erreur)\n")
+    
+    log_f.write("\n" + "="*80 + "\n\n")
 
-print(f"[+] Logs de compilation enregistrés dans {OBF_COMPIL_LOG}")
+print(f"[+] Logs complets enregistrés dans {OBF_COMPIL_LOG}")
+if compil_result['output']['stderr']:
+    print(f"[!] Des erreurs ont été détectées pendant la compilation:")
+    print(compil_result['output']['stderr'])
 
 # ===== Analyse des résultats =====
 
