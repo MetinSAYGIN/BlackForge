@@ -21,42 +21,57 @@ def calculate_entropy(filepath):
             entropy -= p * math.log2(p)
     return entropy
 
+def add_obfuscate_target(makefile_path, pass_so, pass_name):
+    # Vérifier si la cible 'obfuscate' existe déjà
+    with open(makefile_path, "r") as f:
+        lines = f.readlines()
+    
+    # Recherche de la cible 'obfuscate' dans le Makefile
+    for line in lines:
+        if line.strip().startswith("obfuscate:"):
+            print("[*] La cible 'obfuscate' existe déjà dans le Makefile.")
+            return
+    
+    # Si elle n'existe pas, on l'ajoute à la fin du fichier
+    with open(makefile_path, "a") as f:
+        f.write(f"\n# Cible obfuscate générée dynamiquement\n")
+        f.write(f"obfuscate:\n")
+        f.write(f"\topt -load-pass-plugin {pass_so} -passes='{pass_name}' -S main.ll -o main_obf.ll -disable-verify\n")
+        f.write(f"\tclang -O1 -fno-inline -mllvm -disable-llvm-optzns main_obf.ll -o main_obf\n")
+    
+    print("[+] Cible 'obfuscate' ajoutée au Makefile.")
+
 # === Chemins ===
 PASSES_DIR = "passes"
 BUILD_DIR = "build"
 SOURCE_DIR = "sources/clair"
 OBF_DIR = "sources/obfusque"
 
-# === Détection des fichiers sources ===
-entries = os.listdir(SOURCE_DIR)
-source_entries = []
-for entry in entries:
-    path = os.path.join(SOURCE_DIR, entry)
-    if os.path.isdir(path):
-        source_entries.append((entry, True))  # True -> projet
-    elif entry.endswith(('.c', '.cpp')):
-        source_entries.append((entry, False))  # False -> fichier
-
-if not source_entries:
-    print("[!] Aucun fichier ou projet C/C++ trouvé dans sources/clair/")
+# Détection des projets dans sources/clair
+source_projects = [d for d in os.listdir(SOURCE_DIR) if os.path.isdir(os.path.join(SOURCE_DIR, d))]
+if not source_projects:
+    print("[!] Aucun projet trouvé dans sources/clair/")
     exit(1)
 
-print("[?] Fichier source ou projet à compiler :")
-for idx, (name, is_proj) in enumerate(source_entries):
-    label = f"[PROJECT] {name}" if is_proj else name
-    print(f"  {idx}) {label}")
+print("[?] Choisissez un projet ou un fichier .c à obfusquer :")
+
+# Choisir entre un projet ou un fichier C
+source_choices = source_projects + [f for f in os.listdir(SOURCE_DIR) if f.endswith(".c")]
+for idx, name in enumerate(source_choices):
+    print(f"  {idx}) {name}")
 
 choice = int(input("→ Choix (numéro) : "))
-selected_name, is_project = source_entries[choice]
 
-if is_project:
-    PROJECT_NAME = selected_name
+# Déterminer s'il s'agit d'un projet ou d'un fichier .c
+if choice < len(source_projects):
+    PROJECT_NAME = source_choices[choice]
     PROJECT_PATH = os.path.join(SOURCE_DIR, PROJECT_NAME)
-    BASE_NAME = "main"
+    IS_PROJECT = True
 else:
-    SOURCE_FILE = os.path.join(SOURCE_DIR, selected_name)
-    BASE_NAME = os.path.splitext(selected_name)[0]
-    IS_CPP = selected_name.endswith(".cpp")
+    FILE_NAME = source_choices[choice]
+    FILE_PATH = os.path.join(SOURCE_DIR, FILE_NAME)
+    IS_PROJECT = False
+    BASE_NAME = FILE_NAME.replace(".c", "")
 
 # === Étape 1 : Sélection de la passe ===
 print("\n[?] Quelle passe veux-tu appliquer ?")
@@ -93,26 +108,33 @@ if result.returncode != 0:
     print("[!] Échec compilation passe")
     exit(1)
 
-# === Étape 3 : Compilation du projet clair ===
-if is_project:
+# === Étape 3 : Si un PROJECT est sélectionné, utiliser le Makefile ===
+if IS_PROJECT:
+    # Vérification du Makefile
+    makefile_path = os.path.join(PROJECT_PATH, "Makefile")
+    
+    if os.path.exists(makefile_path):
+        add_obfuscate_target(makefile_path, chosen_so, chosen_pass)
+    else:
+        print("[!] Aucun Makefile trouvé dans le projet.")
+        exit(1)
+
+    # === Étape 4 : Compilation via Makefile (si projet sélectionné) ===
     print("\n[+] Compilation via Makefile...")
-    res = subprocess.run("make", cwd=PROJECT_PATH, shell=True)
+    res = subprocess.run("make obfuscate", cwd=PROJECT_PATH, shell=True)
     if res.returncode != 0:
         print("[!] Échec compilation du projet clair.")
         exit(1)
+
     clair_ll = os.path.join(PROJECT_PATH, f"{BASE_NAME}.ll")
     clair_bin = os.path.join(PROJECT_PATH, BASE_NAME)
 else:
-    print("\n[+] Compilation fichier source...")
-    clair_ll = f"{SOURCE_DIR}/{BASE_NAME}.ll"
-    clair_bin = f"{SOURCE_DIR}/{BASE_NAME}"
-    compiler = "clang++" if IS_CPP else "clang"
-    subprocess.run(f"clang -emit-llvm -S -O1 -Xclang -disable-llvm-passes {SOURCE_FILE} -o {clair_ll}", shell=True)
-    subprocess.run(f"{compiler} -O1 -fno-inline {SOURCE_FILE} -o {clair_bin}", shell=True)
+    clair_ll = FILE_PATH
+    clair_bin = BASE_NAME
 
-# === Étape 4 : Obfuscation ===
+# === Étape 5 : Obfuscation ===
 print("\n[+] Obfuscation...")
-OBF_PROJ_DIR = os.path.join(OBF_DIR, selected_name if is_project else BASE_NAME)
+OBF_PROJ_DIR = os.path.join(OBF_DIR, PROJECT_NAME if IS_PROJECT else BASE_NAME)
 os.makedirs(OBF_PROJ_DIR, exist_ok=True)
 obf_ll = os.path.join(OBF_PROJ_DIR, f"{BASE_NAME}_obf.ll")
 obf_bin = os.path.join(OBF_PROJ_DIR, BASE_NAME)
