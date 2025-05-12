@@ -559,29 +559,6 @@ def _print_metrics_summary(metrics: Dict[str, Any]) -> None:
         print(f"[!] Erreur: {metrics['output']['stderr'][:250]}{'...' if len(metrics['output']['stderr']) > 250 else ''}")
 
 
-
-# Exemple d'utilisation
-if __name__ == "__main__":
-    # Exemple simple
-    result = run_with_metrics("ls -la", description="Liste des fichiers")
-    
-    # Exemple avec batch
-    commands = [
-        {"command": "echo 'Test 1'", "description": "Premier test"},
-        {"command": "sleep 2", "description": "Attente", "timeout": 3},
-        {"command": "echo 'Fin des tests'", "description": "Finalisation"}
-    ]
-    batch_results = run_batch_with_metrics(commands, log_file="metrics_log.jsonl")
-    
-    # Exemple comparaison de binaires
-    if os.path.exists("./original") and os.path.exists("./modified"):
-        comparison = compare_binaries("./original", "./modified")
-        print("\n=== Comparaison des binaires ===")
-        print(f"Taille: {comparison['size']['delta_percent']:.2f}% ({comparison['size']['delta_bytes']} octets)")
-        print(f"Entropie: {comparison['entropy']['delta_percent']:.2f}% ({comparison['entropy']['delta']:.4f} bits)")
-        if 'performance' in comparison:
-            print(f"Performance: {comparison['performance']['delta_percent']:.2f}% ({comparison['performance']['delta_seconds']:.4f}s)")
-
 # ===== Configuration des chemins =====
 PASSES_DIR = "passes"
 BUILD_DIR = "build"
@@ -724,7 +701,7 @@ print("| Métrique       | Binaire clair  | Binaire obfusqué |")
 print("+----------------+----------------+----------------+")
 print(f"| Taille (Ko)    | {metrics_clair['size'] / 1024:14.2f} | {metrics_obf['size'] / 1024:14.2f} |")
 print(f"| Temps (s)      | {metrics_clair['time']:14.4f} | {metrics_obf['time']:14.4f} |")
-print(f"| CPU (%)       | {clair_metrics['cpu']:14.2f} | {metrics_obf['cpu']:14.2f} |")
+print(f"| CPU (%)       | {metrics_clair['cpu']:14.2f} | {metrics_obf['cpu']:14.2f} |")
 print(f"| Entropie       | {metrics_clair['entropy']:14.4f} | {metrics_obf['entropy']:14.4f} |")
 print("+----------------+----------------+----------------+")
 print("| Variation (%)  |")
