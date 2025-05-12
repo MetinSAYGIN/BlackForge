@@ -51,7 +51,6 @@ OBF_DIR = "sources/obfusque"
 source_projects = [d for d in os.listdir(SOURCE_DIR) if os.path.isdir(os.path.join(SOURCE_DIR, d))]
 if not source_projects:
     print("[!] Aucun projet trouvé dans sources/clair/")
-    exit(1)
 
 print("[?] Choisissez un projet ou un fichier .c à obfusquer :")
 
