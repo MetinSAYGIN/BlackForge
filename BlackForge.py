@@ -44,9 +44,9 @@ def setup_project_environment(project_path, pass_so, pass_name):
                 f.write(f"\n# Cible obfuscation générée automatiquement\n")
                 f.write(f"obfuscate:\n")
                 f.write(f"\t@echo '[*] Génération du IR obfusqué...'\n")
-                f.write(f"\topt -load-pass-plugin {pass_so} -passes='{pass_name}' -S main.ll -o main_obf.ll -disable-verify\n")
+                f.write(f"\topt -load-pass-plugin {pass_so} -passes='{pass_name}' -S main.ll -o main_obf.ll -disable-verify -debug-pass-manager 2>> {OBF_COMPIL_LOG}\n")
                 f.write(f"\t@echo '[*] Compilation du binaire obfusqué...'\n")
-                f.write(f"\tclang -O1 -fno-inline -mllvm -disable-llvm-optzns main_obf.ll -o main_obf\n")
+                f.write(f"\tclang -O1 -fno-inline -mllvm -disable-llvm-optzns main_obf.ll -o main_obf 2>> {OBF_COMPIL_LOG}\n")
                 return True
     return False
 
@@ -58,12 +58,12 @@ def run_with_metrics(command: Union[str, List[str]],
                     description: Optional[str] = None,
                     check_output: bool = False,
                     verbose: bool = True,
-                    log_file: Optional[str] = None) -> Dict[str, Any]:
+                    log_file: Optional[str] = None,
+                    debug: bool = False) -> Dict[str, Any]:
     """
     Exécute une commande et mesure les ressources et performances.
     """
     # Préparation pour la journalisation
-    
     log_dir = LOG_DIR
     if log_file:
         log_dir = os.path.dirname(log_file)
@@ -92,22 +92,45 @@ def run_with_metrics(command: Union[str, List[str]],
         cpu_start = psutil.cpu_percent(interval=None)
         mem_start = psutil.virtual_memory().percent
         
-        process = subprocess.run(
-            command,
-            shell=isinstance(command, str),
-            cwd=cwd,
-            env=env,
-            capture_output=True,
-            text=True,
-            timeout=timeout
-        )
+        if debug:
+            # Mode debug avec capture spécifique des logs
+            with open(OBF_COMPIL_LOG, 'a') as debug_log:
+                debug_log.write("\n" + "="*80 + "\n")
+                debug_log.write(f"DEBUG - {datetime.now()}\n")
+                debug_log.write(f"Commande: {cmd_str}\n")
+                debug_log.write("="*80 + "\n")
+                
+                process = subprocess.Popen(
+                    command,
+                    shell=True,
+                    cwd=cwd,
+                    env=env,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True
+                )
+                stdout, stderr = process.communicate(timeout=timeout)
+                returncode = process.returncode
+                
+                debug_log.write(stderr)
+                debug_log.write("\n" + "="*80 + "\n\n")
+        else:
+            # Mode normal
+            process = subprocess.run(
+                command,
+                shell=isinstance(command, str),
+                cwd=cwd,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=timeout
+            )
+            stdout = process.stdout
+            stderr = process.stderr
+            returncode = process.returncode
         
         cpu_end = psutil.cpu_percent(interval=None)
         mem_end = psutil.virtual_memory().percent
-        # Récupération des résultats
-        stdout = process.stdout
-        stderr = process.stderr
-        returncode = process.returncode
         
     except subprocess.TimeoutExpired as e:
         elapsed = timeout
@@ -134,6 +157,7 @@ def run_with_metrics(command: Union[str, List[str]],
     
     if elapsed is None:
         elapsed = 0.0
+    
     # Construction du résultat complet
     result = {
         "command": cmd_str,
@@ -178,7 +202,6 @@ def run_with_metrics(command: Union[str, List[str]],
             log_f.write(f"Erreur: {stderr}\n")
             log_f.write(f"Temps écoulé: {elapsed:.2f}s\n")
             log_f.write(f"{'-' * 60}\n")
-    
     
     return result
 
@@ -526,7 +549,6 @@ if result["execution"]["returncode"] != 0:
     print(f"[!] Command failed with error code {result['execution']['returncode']}")
     exit(1)
 
-
 # ===== Traitement selon le type de cible =====
 if is_project:
     # Mode projet avec Makefile
@@ -561,46 +583,45 @@ else:
     obf_ll = os.path.join(obf_dir, f"{base_name}_obf.ll")
     obf_bin = os.path.join(obf_dir, base_name)
 
+print("\n[+] Compilation en LLVM IR sans optimisation...")
+print(f"clang -emit-llvm -S -O0 {source_file} -o {clair_ll}")
+run_with_metrics(f"clang -emit-llvm -S -O0 {source_file} -o {clair_ll}")
+
+print(f"\n[+] Compilation du binaire clair sans optimisations...")
+print(f"clang -O0 -fno-inline -Xclang -disable-llvm-passes {source_file} -o {clair_bin}")
+run_with_metrics(f"clang -O0 -fno-inline -Xclang -disable-llvm-passes {source_file} -o {clair_bin}")
+
+print("\n[+] Application de la passe d'obfuscation avec debug...")
+cmd = f"opt -load-pass-plugin {pass_so} -passes='{pass_name}' -S {clair_ll} -o {obf_ll} -disable-verify -debug-pass-manager"
+print(cmd)
+run_with_metrics(cmd, debug=True)
+
 print(f"\n[+] Compilation du fichier obfusqué sans optimisations...")
 compile_cmd = f"clang -O0 -fno-inline -Xclang -disable-llvm-passes {obf_ll} -o {obf_bin}"
 print(compile_cmd)
 
 # Exécution avec capture des sorties
-compil_result = run_with_metrics(compile_cmd)
+compil_result = run_with_metrics(compile_cmd, log_file=OBF_COMPIL_LOG)
 
-# Journalisation détaillée
+# Journalisation supplémentaire
 with open(OBF_COMPIL_LOG, 'a') as log_f:
     log_f.write("\n" + "="*80 + "\n")
-    log_f.write(f"COMPILATION OBFUSQUÉE - {datetime.now()}\n")
+    log_f.write(f"COMPILATION FINALE - {datetime.now()}\n")
     log_f.write("="*80 + "\n")
-    log_f.write(f"Commande: {compile_cmd}\n\n")
-    
-    # En-tête des résultats
-    log_f.write("=== RÉSULTATS ===\n")
-    log_f.write(f"Code retour: {compil_result['execution']['returncode']}\n")
-    log_f.write(f"Succès: {'OUI' if compil_result['execution']['success'] else 'NON'}\n")
-    log_f.write(f"Durée: {compil_result['execution']['elapsed_seconds']:.2f}s\n\n")
-    
-    # Sortie standard
-    log_f.write("=== SORTIE STANDARD (stdout) ===\n")
-    log_f.write(compil_result['output']['stdout'] if compil_result['output']['stdout'] else "(vide)\n")
-    log_f.write("\n")
-    
-    # Sortie d'erreur - partie importante
-    log_f.write("=== SORTIE D'ERREUR (stderr) ===\n")
-    if compil_result['output']['stderr']:
-        log_f.write(compil_result['output']['stderr'])
-        if compil_result['execution']['returncode'] != 0:
-            log_f.write("\n\n[ERREUR] La compilation a échoué !\n")
-    else:
-        log_f.write("(aucune erreur)\n")
-    
+    log_f.write(f"Fichier source: {source_file}\n")
+    log_f.write(f"Passe d'obfuscation: {pass_name}\n")
+    log_f.write(f"Binaire généré: {obf_bin}\n\n")
+    log_f.write(f"Résultats:\n")
+    log_f.write(f"- Code retour: {compil_result['execution']['returncode']}\n")
+    log_f.write(f"- Durée: {compil_result['execution']['elapsed_seconds']:.2f}s\n")
+    log_f.write(f"- Taille binaire: {os.path.getsize(obf_bin) / 1024:.2f} Ko\n")
     log_f.write("\n" + "="*80 + "\n\n")
 
 print(f"[+] Logs complets enregistrés dans {OBF_COMPIL_LOG}")
 if compil_result['output']['stderr']:
-    print(f"[!] Des erreurs ont été détectées pendant la compilation:")
+    print(f"[!] Des erreurs ont été détectées:")
     print(compil_result['output']['stderr'])
+
 
 # ===== Analyse des résultats =====
 
