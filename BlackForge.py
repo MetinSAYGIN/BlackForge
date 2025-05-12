@@ -493,7 +493,7 @@ cmd = f"clang++ -fPIC -shared {os.path.join(PASSES_DIR, passes[pass_choice])} " 
       f"-o {pass_so} `llvm-config --cxxflags --ldflags --system-libs --libs core passes` -std=c++17"
 result = run_with_metrics(cmd)
 if result["execution"]["returncode"] != 0:
-    print(f"[!] Command failed with error code {result[execution][returncode]}")
+    print(f"[!] Command failed with error code {result['execution']['returncode']}")
     exit(1)
 
 
@@ -556,7 +556,7 @@ def collect_metrics(bin_path):
     return {
         "size": os.path.getsize(bin_path),
         "entropy": calculate_entropy(bin_path),
-        "time": metrics["elapsed_seconds"],
+        metrics_result["execution"]["elapsed_seconds"],
         "cpu": metrics["system"]["cpu"]["percent"]["delta"]
     }
 
