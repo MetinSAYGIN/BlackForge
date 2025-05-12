@@ -82,7 +82,7 @@ def run_with_metrics(command: Union[str, List[str]],
         }
     """
     # Préparation pour le logging
-    log_dir = None
+    log_dir = LOG_DIR
     if log_file:
         log_dir = os.path.dirname(log_file)
         if log_dir and not os.path.exists(log_dir):
