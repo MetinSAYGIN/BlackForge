@@ -69,6 +69,23 @@ from typing import Dict, List, Optional, Union, Any, Tuple
 from pathlib import Path
 
 
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import os
+import time
+import subprocess
+import math
+import psutil
+import platform
+import json
+import shlex
+import signal
+from datetime import datetime
+from typing import Dict, List, Optional, Union, Any, Tuple
+from pathlib import Path
+
+
 def run_with_metrics(command: Union[str, List[str]], 
                     cwd: Optional[str] = None,
                     timeout: Optional[float] = None,
@@ -92,6 +109,13 @@ def run_with_metrics(command: Union[str, List[str]],
     
     Returns:
         Un dictionnaire contenant les métriques et résultats d'exécution
+        avec la structure compatible avec le code existant:
+        {
+            "time": temps_d'exécution,
+            "returncode": code_de_retour,
+            "output": stdout,
+            ...autres métriques supplémentaires...
+        }
     """
     # Préparation pour le logging
     log_dir = None
@@ -240,7 +264,11 @@ def run_with_metrics(command: Union[str, List[str]],
             "stderr": stderr,
             "stdout_lines": len(stdout.splitlines()) if stdout else 0,
             "stderr_lines": len(stderr.splitlines()) if stderr else 0
-        }
+        },
+        # Compatibilité avec le code existant
+        "time": elapsed,
+        "returncode": returncode,
+        "output": stdout
     }
     
     # Affichage du résultat si verbose
@@ -300,6 +328,173 @@ def run_batch_with_metrics(commands: List[Dict],
     print(f"Temps total: {total_time:.2f}s")
     
     return results
+
+
+def calculate_binary_entropy(filepath: str) -> float:
+    """
+    Calcule l'entropie de Shannon d'un fichier binaire.
+    Une entropie plus élevée indique généralement plus d'obfuscation.
+    
+    Args:
+        filepath: Chemin vers le fichier à analyser
+        
+    Returns:
+        Valeur d'entropie entre 0 et 8 (bits)
+    """
+    try:
+        with open(filepath, "rb") as f:
+            data = f.read()
+        
+        if not data:
+            return 0
+            
+        # Calcul des fréquences
+        freq = [0] * 256
+        for byte in data:
+            freq[byte] += 1
+            
+        # Calcul de l'entropie de Shannon
+        entropy = 0.0
+        for f in freq:
+            if f > 0:
+                p = f / len(data)
+                entropy -= p * math.log2(p)
+                
+        return entropy
+    except Exception as e:
+        print(f"[!] Erreur lors du calcul d'entropie: {e}")
+        return 0.0
+
+
+def compare_binaries(original_path: str, modified_path: str, 
+                   run_perf_test: bool = True) -> Dict[str, Any]:
+    """
+    Compare deux binaires et retourne des métriques de comparaison.
+    
+    Args:
+        original_path: Chemin vers le binaire original
+        modified_path: Chemin vers le binaire modifié
+        run_perf_test: Exécuter les binaires pour comparer les performances
+        
+    Returns:
+        Dictionnaire avec les métriques de comparaison
+    """
+    orig_size = os.path.getsize(original_path)
+    mod_size = os.path.getsize(modified_path)
+    
+    orig_entropy = calculate_binary_entropy(original_path)
+    mod_entropy = calculate_binary_entropy(modified_path)
+    
+    results = {
+        "size": {
+            "original": orig_size,
+            "modified": mod_size,
+            "delta_bytes": mod_size - orig_size,
+            "delta_percent": ((mod_size - orig_size) / orig_size) * 100 if orig_size > 0 else float('inf')
+        },
+        "entropy": {
+            "original": orig_entropy,
+            "modified": mod_entropy,
+            "delta": mod_entropy - orig_entropy,
+            "delta_percent": ((mod_entropy - orig_entropy) / orig_entropy) * 100 if orig_entropy > 0 else float('inf')
+        }
+    }
+    
+    if run_perf_test and os.access(original_path, os.X_OK) and os.access(modified_path, os.X_OK):
+        # Exécuter chaque binaire plusieurs fois pour obtenir une moyenne
+        runs = 3
+        orig_times = []
+        mod_times = []
+        
+        for _ in range(runs):
+            orig_result = run_with_metrics(
+                f"./{os.path.basename(original_path)}", 
+                cwd=os.path.dirname(original_path),
+                verbose=False
+            )
+            orig_times.append(orig_result["execution"]["elapsed_seconds"])
+            
+            mod_result = run_with_metrics(
+                f"./{os.path.basename(modified_path)}", 
+                cwd=os.path.dirname(modified_path),
+                verbose=False
+            )
+            mod_times.append(mod_result["execution"]["elapsed_seconds"])
+        
+        # Calculer les temps moyens
+        orig_avg = sum(orig_times) / len(orig_times)
+        mod_avg = sum(mod_times) / len(mod_times)
+        
+        results["performance"] = {
+            "original_avg_time": orig_avg,
+            "modified_avg_time": mod_avg,
+            "delta_seconds": mod_avg - orig_avg,
+            "delta_percent": ((mod_avg - orig_avg) / orig_avg) * 100 if orig_avg > 0 else float('inf'),
+            "original_runs": orig_times,
+            "modified_runs": mod_times
+        }
+    
+    return results
+
+
+def _print_metrics_summary(metrics: Dict[str, Any]) -> None:
+    """Affiche un résumé formaté des métriques d'exécution"""
+    status = "✓" if metrics["execution"]["success"] else "✗" 
+    desc = f" - {metrics['description']}" if metrics.get('description') else ""
+    
+    print(f"\n{'-' * 60}")
+    print(f"Résultat: {status} (code: {metrics['execution']['returncode']}){desc}")
+    print(f"Temps: {metrics['execution']['elapsed_seconds']:.3f}s")
+    
+    if 'system' in metrics:
+        if 'cpu' in metrics['system']:
+            print(f"CPU: {metrics['system']['cpu']['percent']['delta']:.1f}% (variation)")
+        
+        if 'memory' in metrics['system']:
+            mem_delta = metrics['system']['memory']['used_percent']['delta']
+            mem_sign = "+" if mem_delta > 0 else ""
+            print(f"Mémoire: {mem_sign}{mem_delta:.1f}% (variation d'utilisation)")
+    
+    if metrics["execution"]["timed_out"]:
+        print(f"[!] TIMEOUT après {metrics['execution']['elapsed_seconds']:.1f}s")
+    
+    if not metrics["execution"]["success"]:
+        print(f"[!] Erreur: {metrics['output']['stderr'][:250]}{'...' if len(metrics['output']['stderr']) > 250 else ''}")
+
+
+def _append_to_log(metrics: Dict[str, Any], log_file: str) -> None:
+    """Ajoute les métriques à un fichier de log au format JSON"""
+    try:
+        with open(log_file, 'a', encoding='utf-8') as f:
+            # Ajouter timestamp pour le log
+            log_entry = metrics.copy()
+            log_entry["log_time"] = datetime.now().isoformat()
+            f.write(json.dumps(log_entry) + '\n')
+    except Exception as e:
+        print(f"[!] Erreur d'écriture dans le fichier log: {e}")
+
+
+# Exemple d'utilisation
+if __name__ == "__main__":
+    # Exemple simple
+    result = run_with_metrics("ls -la", description="Liste des fichiers")
+    
+    # Exemple avec batch
+    commands = [
+        {"command": "echo 'Test 1'", "description": "Premier test"},
+        {"command": "sleep 2", "description": "Attente", "timeout": 3},
+        {"command": "echo 'Fin des tests'", "description": "Finalisation"}
+    ]
+    batch_results = run_batch_with_metrics(commands, log_file="metrics_log.jsonl")
+    
+    # Exemple comparaison de binaires
+    if os.path.exists("./original") and os.path.exists("./modified"):
+        comparison = compare_binaries("./original", "./modified")
+        print("\n=== Comparaison des binaires ===")
+        print(f"Taille: {comparison['size']['delta_percent']:.2f}% ({comparison['size']['delta_bytes']} octets)")
+        print(f"Entropie: {comparison['entropy']['delta_percent']:.2f}% ({comparison['entropy']['delta']:.4f} bits)")
+        if 'performance' in comparison:
+            print(f"Performance: {comparison['performance']['delta_percent']:.2f}% ({comparison['performance']['delta_seconds']:.4f}s)")
 
 
 def calculate_binary_entropy(filepath: str) -> float:
