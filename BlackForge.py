@@ -154,7 +154,7 @@ else:
 
     # Obfuscation
     print("\n[+] Application de la passe d'obfuscation...")
-    cmd = f"opt -load-pass-plugin {pass_so} -passes='default<O1>,{pass_name}' -S {clair_ll} -o {obf_ll}"
+    cmd = f"opt -load-pass-plugin {pass_so} -passes='{pass_name}' -S {clair_ll} -o {obf_ll}"
     print(cmd)
     run_with_metrics(cmd)
     
