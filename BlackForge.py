@@ -426,40 +426,6 @@ def _print_metrics_summary(metrics: Dict[str, Any]) -> None:
         print(f"[!] Erreur: {metrics['output']['stderr'][:250]}{'...' if len(metrics['output']['stderr']) > 250 else ''}")
 
 
-def _append_to_log(metrics: Dict[str, Any], log_file: str) -> None:
-    """Ajoute les métriques à un fichier de log au format JSON"""
-    try:
-        with open(log_file, 'a', encoding='utf-8') as f:
-            # Ajouter timestamp pour le log
-            log_entry = metrics.copy()
-            log_entry["log_time"] = datetime.now().isoformat()
-            f.write(json.dumps(log_entry) + '\n')
-    except Exception as e:
-        print(f"[!] Erreur d'écriture dans le fichier log: {e}")
-
-
-# Exemple d'utilisation
-if __name__ == "__main__":
-    # Exemple simple
-    result = run_with_metrics("ls -la", description="Liste des fichiers")
-    
-    # Exemple avec batch
-    commands = [
-        {"command": "echo 'Test 1'", "description": "Premier test"},
-        {"command": "sleep 2", "description": "Attente", "timeout": 3},
-        {"command": "echo 'Fin des tests'", "description": "Finalisation"}
-    ]
-    batch_results = run_batch_with_metrics(commands, log_file="metrics_log.jsonl")
-    
-    # Exemple comparaison de binaires
-    if os.path.exists("./original") and os.path.exists("./modified"):
-        comparison = compare_binaries("./original", "./modified")
-        print("\n=== Comparaison des binaires ===")
-        print(f"Taille: {comparison['size']['delta_percent']:.2f}% ({comparison['size']['delta_bytes']} octets)")
-        print(f"Entropie: {comparison['entropy']['delta_percent']:.2f}% ({comparison['entropy']['delta']:.4f} bits)")
-        if 'performance' in comparison:
-            print(f"Performance: {comparison['performance']['delta_percent']:.2f}% ({comparison['performance']['delta_seconds']:.4f}s)")
-
 
 def calculate_binary_entropy(filepath: str) -> float:
     """
@@ -592,17 +558,6 @@ def _print_metrics_summary(metrics: Dict[str, Any]) -> None:
     if not metrics["execution"]["success"]:
         print(f"[!] Erreur: {metrics['output']['stderr'][:250]}{'...' if len(metrics['output']['stderr']) > 250 else ''}")
 
-
-def _append_to_log(metrics: Dict[str, Any], log_file: str) -> None:
-    """Ajoute les métriques à un fichier de log au format JSON"""
-    try:
-        with open(log_file, 'a', encoding='utf-8') as f:
-            # Ajouter timestamp pour le log
-            log_entry = metrics.copy()
-            log_entry["log_time"] = datetime.now().isoformat()
-            f.write(json.dumps(log_entry) + '\n')
-    except Exception as e:
-        print(f"[!] Erreur d'écriture dans le fichier log: {e}")
 
 
 # Exemple d'utilisation
