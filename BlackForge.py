@@ -134,6 +134,22 @@ def run_with_metrics(command: Union[str, List[str]],
             "timed_out": timed_out,
             "error": error_msg
         },
+        "system": {
+            "cpu": {
+                "percent": {
+                    "start": cpu_start,
+                    "end": cpu_end,
+                    "delta": cpu_end - cpu_start
+                }
+            },
+            "memory": {
+                "used_percent": {
+                    "start": mem_start,
+                    "end": mem_end,
+                    "delta": mem_end - mem_start
+                }
+            }
+        },
         "output": {
             "stdout": stdout,
             "stderr": stderr,
