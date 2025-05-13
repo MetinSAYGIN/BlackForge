@@ -30,7 +30,7 @@ BlackForge is an advanced binary obfuscation framework that leverages LLVM passe
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/MetinSAYGIN/BlackForge.git
+git clone https://github.com/yourusername/BlackForge.git
 cd BlackForge
 ```
 
@@ -175,3 +175,57 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 - LLVM Project for their amazing compiler infrastructure
 - All contributors who have helped shape this project
+
+## 🔍 Use Cases
+
+### Software Protection for Commercial Applications
+
+BlackForge can be used to protect proprietary algorithms and intellectual property in commercial software:
+
+```bash
+# Obfuscate a key algorithm before shipping
+$ python BlackForge.py 
+[?] Sélectionnez un projet ou fichier source:
+  0) [FICHIER] license_check.c
+→ Choix (numéro): 0
+
+[?] Sélectionnez une passe d'obfuscation:
+  0) control_flow_flattening
+  1) string_encryption
+→ Choix (numéro): 1
+
+[+] Compilation de la passe string_encryption...
+...
+=== 📊 RÉSULTATS DE L'ANALYSE ===
++----------------+----------------+----------------+
+| Métrique       | Binaire clair  | Binaire obfusqué |
++----------------+----------------+----------------+
+| Taille (Ko)    |          8.25  |          10.45  |
+| Temps (s)      |       0.0015   |        0.0018   |
+| Entropie       |       5.4532   |        6.2143   |
++----------------+----------------+----------------+
+```
+
+### Academic Research on Obfuscation Techniques
+
+Researchers can use BlackForge to measure the effectiveness of different obfuscation techniques:
+
+```bash
+# Run multiple passes on the same file and compare results
+$ python BlackForge.py  # Run with first pass
+...
+$ python BlackForge.py  # Run with second pass
+...
+$ python BlackForge.py  # Run with combined passes
+...
+
+# Compare the logs and metrics to evaluate effectiveness vs. performance impact
+```
+
+## 📝 To Do
+
+* Improved integration with complex projects (with multiple source files)
+* Implement a lightweight web interface for a more user-friendly experience
+* Add batch processing mode for evaluating multiple passes at once
+* Support for more diverse metrics and analysis tools
+* Add pre-built common obfuscation passes library
