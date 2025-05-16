@@ -8,3 +8,5 @@
 !sources/clair/*.cpp
 /logs/*
 
+benchmark_results.json
+binaries_paths.json
