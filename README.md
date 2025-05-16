@@ -39,7 +39,7 @@ cd BlackForge
 pip install psutil
 ```
 
-3. Ensure LLVM toolchain is installed:
+3. Ensure LLVM toolchain is installed (LLVM 19, Clang 19, Opt 19 ..):
 ```bash
 # For Debian/Ubuntu
 sudo apt-get install llvm clang
