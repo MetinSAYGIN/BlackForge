@@ -4,6 +4,7 @@ import subprocess
 import shutil
 from pathlib import Path
 from datetime import datetime
+import json
 
 # Configuration des chemins
 PASSES_DIR = "passes"
