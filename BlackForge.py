@@ -174,4 +174,4 @@ def main():
         json.dump(binaries, f)
 
 if __name__ == "__main__":
-    main()
+    main() 
