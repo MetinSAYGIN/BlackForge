@@ -154,7 +154,31 @@ def process_project(config):
 
     # Déplacement des résultats
     shutil.copytree(project_path, obf_project_path, dirs_exist_ok=True)
+    
+    makefile_obfucated_path = os.path.join(obf_project_path, "Makefile")
+    if os.path.exists(makefile_obfucated_path):
+        with open(makefile_obfucated_path, "r") as f:
+            lines = f.readlines()
 
+        new_lines = []
+        exec_found = False
+
+        for line in lines:
+            if line.strip().startswith("EXEC"):
+                new_lines.append(f"EXEC = {exec_name}_obf\n")
+                exec_found = True
+            else:
+                new_lines.append(line)
+
+        if exec_found:
+            with open(makefile_obfucated_path, "w") as f:
+                f.writelines(new_lines)
+            print(f"[✓] Makefile obfuscated mis à jour : EXEC = {exec_name}_obf")
+        else:
+            print("[i] Aucune ligne EXEC trouvée dans le Makefile obfuscated, rien changé.")
+    else:
+        print("[!] Aucun Makefile obfuscated trouvé pour modifier EXEC")
+    
     return {
         "clair_bin": os.path.join(project_path, exec_name),
         "obf_bin": os.path.join(obf_project_path, f"{exec_name}_obf")
