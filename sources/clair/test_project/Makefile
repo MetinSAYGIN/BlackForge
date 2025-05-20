@@ -1,11 +1,14 @@
 # Makefile pour obfuscation LLVM
 CC = clang
+LLVM_BIN = $(shell dirname $$(which opt))/
 CFLAGS = -Wall -Wextra -std=c11 -O1
 OBJ = main.o fonctions.o
 EXEC = test_project
 
 # Variables d'obfuscation
-PASS_NAME ?= $(error PASS_NAME must be specified)
+ifndef PASS_NAME
+$(error PASS_NAME must be specified (e.g. make obfuscate PASS_NAME=PrintfPrependPass))
+endif
 PASS_SO = $(PASS_NAME).so
 
 # Règles classiques
@@ -21,8 +24,8 @@ fonctions.o: fonctions.c fonctions.h
 	$(CC) $(CFLAGS) -c fonctions.c
 
 # Obfuscation LLVM
-IR_FILES = main.ll fonctions.ll
-OBF_IR = $(EXEC).ll
+IR_FILES = $(patsubst %.c,%.ll,$(wildcard *.c))
+OBF_IR = $(EXEC)_obf.ll
 OBF_OUT = $(EXEC)_obf
 
 .PHONY: obfuscate
