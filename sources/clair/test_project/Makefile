@@ -2,11 +2,11 @@
 CC = clang
 CFLAGS = -Wall -Wextra -std=c11 -O1
 OBJ = main.o fonctions.o
-EXEC = programme
+EXEC = test_project
 
-# Variables d'obfuscation (PASS_NAME à spécifier en ligne de commande)
-PASS_NAME ?= 
-PASS_SO = $(PASS_NAME).so       # Génération automatique du .so
+# Variables d'obfuscation
+PASS_NAME ?= $(error PASS_NAME must be specified)
+PASS_SO = $(PASS_NAME).so
 
 # Règles classiques
 all: $(EXEC)
@@ -25,17 +25,18 @@ IR_FILES = main.ll fonctions.ll
 OBF_IR = $(EXEC).ll
 OBF_OUT = $(EXEC)_obf
 
+.PHONY: obfuscate
 obfuscate: $(OBF_OUT)
 
 $(OBF_OUT): $(OBF_IR)
-	opt -load $(PASS_SO) -$(PASS_NAME) < $< | llc -filetype=obj -o $(EXEC)_obf.o
+	$(LLVM_BIN)opt -load $(PASS_SO) -$(PASS_NAME) < $< | $(LLVM_BIN)llc -filetype=obj -o $(EXEC)_obf.o
 	$(CC) $(EXEC)_obf.o -o $@
 
 $(OBF_IR): $(IR_FILES)
-	llvm-link $(IR_FILES) -o $@
+	$(LLVM_BIN)llvm-link $(IR_FILES) -o $@
 
 %.ll: %.c
 	$(CC) -emit-llvm -S $(CFLAGS) $< -o $@
 
 clean:
-	rm -f *.o $(EXEC) *.ll $(EXEC)_obf
+	rm -f *.o $(EXEC) *.ll $(EXEC)_obf *.bc
