@@ -110,25 +110,57 @@ def process_project(config):
     """Traite un projet complet"""
     project_path = os.path.join(SOURCE_DIR, config["target"])
     obf_project_path = os.path.join(OBF_DIR, config["target"])
-    
+    exec_name = os.path.basename(project_path)
+
+    # ➕ Mise à jour du Makefile
+    makefile_path = os.path.join(project_path, "Makefile")
+    if os.path.exists(makefile_path):
+        with open(makefile_path, "r") as f:
+            lines = f.readlines()
+
+        new_lines = []
+        exec_found = False
+
+        for line in lines:
+            if line.strip().startswith("EXEC"):
+                new_lines.append(f"EXEC = {exec_name}\n")
+                exec_found = True
+            else:
+                new_lines.append(line)
+
+        if exec_found:
+            with open(makefile_path, "w") as f:
+                f.writelines(new_lines)
+            print(f"[✓] Makefile mis à jour : EXEC = {exec_name}")
+        else:
+            print("[i] Aucune ligne EXEC trouvée dans le Makefile, rien changé.")
+    else:
+        print("[!] Aucun Makefile trouvé pour modifier EXEC")
+
     # Compilation propre
     print("\n[+] Compilation du projet original...")
     run_command("make clean && make", cwd=project_path)
-    
-    # Génération du IR
-    run_command("make main.ll", cwd=project_path)
-    
-    # Obfuscation via Makefile
+
+    # Génération du IR avec nom personnalisé
+    print("\n[+] Génération du fichier LLVM IR...")
+    run_command(f"clang -emit-llvm -S -O1 {exec_name}.c -o {exec_name}.ll", cwd=project_path)
+
+    # Obfuscation via Makefile (adapté à ton système de règles Make)
     print("\n[+] Obfuscation du projet...")
-    run_command(f"make obfuscate PASS_SO={config['pass_so']} PASS_NAME={config['pass_name']}", cwd=project_path)
-    
+    run_command(
+        f"make obfuscate PASS_SO={config['pass_so']} PASS_NAME={config['pass_name']} EXEC={exec_name}",
+        cwd=project_path
+    )
+
     # Déplacement des résultats
     shutil.copytree(project_path, obf_project_path, dirs_exist_ok=True)
-    
+
     return {
-        "clair_bin": os.path.join(project_path, "main"),
-        "obf_bin": os.path.join(obf_project_path, "main_obf")
+        "clair_bin": os.path.join(project_path, exec_name),
+        "obf_bin": os.path.join(obf_project_path, f"{exec_name}_obf")
     }
+
+
 
 def process_file(config):
     """Traite un fichier individuel"""
