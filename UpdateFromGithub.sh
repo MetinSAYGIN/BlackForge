@@ -1,8 +1,9 @@
 #!/bin/bash
+#move this file to ../
 
-chmod -x BlackForge.py
-chmod -x Compare.py
+chmod -x BlackForge/BlackForge.py
+chmod -x BlackForge/Compare.py
 git pull
-chmod +x BlackForge.py
-chmod +x Compare.py
-./BlackForge.py
+chmod +x BlackForge/BlackForge.py
+chmod +x BlackForge/Compare.py
+./BlackForge/BlackForge.py
