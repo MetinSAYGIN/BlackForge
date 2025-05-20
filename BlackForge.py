@@ -177,7 +177,7 @@ def process_project(config):
     # Obfuscation via Makefile (adapté à ton système de règles Make)
     print("\n[+] Obfuscation du projet...")
     run_command(
-        f"make PASS_SO={config['pass_so']} PASS_NAME={config['pass_name']} EXEC={exec_name_obf}",
+        f"make PASS_SO={config['pass_so']} PASS_NAME={config['pass_name']} EXEC={exec_name}_obf",
         cwd=obf_project_path
     )
     
