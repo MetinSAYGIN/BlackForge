@@ -1,9 +1,11 @@
 #!/bin/bash
 #move this file to ../
+git clone https://github.com/MetinSAYGIN/BlackForge.git
 
-chmod -x BlackForge/BlackForge.py
-chmod -x BlackForge/Compare.py
+cd BlackForge
+chmod -x BlackForge.py
+chmod -x /Compare.py
 git pull
-chmod +x BlackForge/BlackForge.py
-chmod +x BlackForge/Compare.py
-./BlackForge/BlackForge.py
+chmod +x BlackForge.py
+chmod +x Compare.py
+./BlackForge.py
