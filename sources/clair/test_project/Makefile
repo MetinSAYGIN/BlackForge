@@ -1,31 +1,41 @@
-# Makefile LLVM-compatible avec obfuscation
-
+# Makefile pour obfuscation LLVM
 CC = clang
 CFLAGS = -Wall -Wextra -std=c11 -O1
-SRCS = main.c fonctions.c
-OBJS = main.o fonctions.o
-LL = programme.ll
-OBF_LL = programme_obf.ll
+OBJ = main.o fonctions.o
 EXEC = programme
-OBF_EXEC = programme_obf
 
-# Par défaut, compilation normale avec -O1
+# Variables d'obfuscation (PASS_NAME à spécifier en ligne de commande)
+PASS_NAME ?= 
+PASS_SO = $(PASS_NAME).so       # Génération automatique du .so
+
+# Règles classiques
 all: $(EXEC)
 
-$(EXEC): $(OBJS)
-	$(CC) $(CFLAGS) -o $(EXEC) $(OBJS)
+$(EXEC): $(OBJ)
+	$(CC) $(CFLAGS) -o $(EXEC) $(OBJ)
 
-%.o: %.c
-	$(CC) $(CFLAGS) -c $< -o $@
+main.o: main.c fonctions.h
+	$(CC) $(CFLAGS) -c main.c
 
-# Génération du fichier LLVM IR
-$(LL): $(SRCS)
-	$(CC) $(CFLAGS) -emit-llvm -S $(SRCS) -o $(LL)
+fonctions.o: fonctions.c fonctions.h
+	$(CC) $(CFLAGS) -c fonctions.c
 
-# Application de la passe LLVM (à fournir dynamiquement)
-obfuscate: $(LL)
-	opt -load-pass-plugin $(PASS_SO) -passes='$(PASS_NAME)' -S $(LL) -o $(OBF_LL)
-	$(CC) $(CFLAGS) $(OBF_LL) -o $(OBF_EXEC)
+# Obfuscation LLVM
+IR_FILES = main.ll fonctions.ll
+OBF_IR = $(EXEC).ll
+OBF_OUT = $(EXEC)_obf
+
+obfuscate: $(OBF_OUT)
+
+$(OBF_OUT): $(OBF_IR)
+	opt -load $(PASS_SO) -$(PASS_NAME) < $< | llc -filetype=obj -o $(EXEC)_obf.o
+	$(CC) $(EXEC)_obf.o -o $@
+
+$(OBF_IR): $(IR_FILES)
+	llvm-link $(IR_FILES) -o $@
+
+%.ll: %.c
+	$(CC) -emit-llvm -S $(CFLAGS) $< -o $@
 
 clean:
-	rm -f *.o *.ll $(EXEC) $(OBF_EXEC)
+	rm -f *.o $(EXEC) *.ll $(EXEC)_obf
