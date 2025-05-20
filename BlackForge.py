@@ -112,54 +112,32 @@ def process_project(config):
     project_path = os.path.join(SOURCE_DIR, config["target"])
     obf_project_path = os.path.join(OBF_DIR, config["target"])
     exec_name = os.path.basename(project_path)
-
-    # 1. Mise à jour du Makefile original
-    makefile_path = os.path.join(project_path, "Makefile")
-    if os.path.exists(makefile_path):
-        # Backup du Makefile original
-        shutil.copy2(makefile_path, f"{makefile_path}.bak")
-        
-        # Modification de la variable EXEC
-        with open(makefile_path, "r") as f:
-            lines = f.readlines()
-
-        new_lines = []
-        exec_found = False
-        for line in lines:
-            if line.strip().startswith("EXEC"):
-                new_lines.append(f"EXEC = {exec_name}\n")
-                exec_found = True
-            else:
-                new_lines.append(line)
-
-        if exec_found:
-            with open(makefile_path, "w") as f:
-                f.writelines(new_lines)
-            print(f"[✓] Makefile original mis à jour : EXEC = {exec_name}")
-        else:
-            print("[!] Avertissement : Aucune ligne EXEC trouvée dans le Makefile original")
-
-    # 2. Copie du projet vers le dossier obfusqué
+    
+    # 1. Copie du projet vers le dossier obfusqué
     shutil.copytree(project_path, obf_project_path, dirs_exist_ok=True)
     print(f"[✓] Projet copié vers {obf_project_path}")
-
-    # 3. Modification du Makefile obfusqué
+    
+    # 2. Modification du Makefile obfusqué
     makefile_obf_path = os.path.join(obf_project_path, "Makefile")
     if os.path.exists(makefile_obf_path):
         with open(makefile_obf_path, "r") as f:
             content = f.read()
 
         # Ajout des règles d'obfuscation LLVM
-        new_content = content + f"""
-# Règles d'obfuscation LLVM (ajoutées automatiquement)
+        obf_rules = f"""
+# === Règles d'obfuscation LLVM (ajoutées automatiquement) ===
+OBF_SO_PATH = {os.path.dirname(config['pass_so'])}
+PASS_NAME ?= $(error Spécifiez PASS_NAME: make obfuscate PASS_NAME=NomDeVotrePasse)
+
 IR_FILES = $(patsubst %.c,%.ll,$(wildcard *.c))
 OBF_IR = $(EXEC).ll
 OBF_OUT = $(EXEC)_obf
 
+.PHONY: obfuscate
 obfuscate: $(OBF_OUT)
 
 $(OBF_OUT): $(OBF_IR)
-\topt -load {config['pass_name']}.so -{config['pass_name']} < $< | llc -filetype=obj -o $(EXEC)_obf.o
+\topt -load $(OBF_SO_PATH)/$(PASS_NAME).so -$(PASS_NAME) < $< | llc -filetype=obj -o $(EXEC)_obf.o
 \t$(CC) $(EXEC)_obf.o -o $@
 
 $(OBF_IR): $(IR_FILES)
@@ -169,7 +147,13 @@ $(OBF_IR): $(IR_FILES)
 \t$(CC) -emit-llvm -S $(CFLAGS) $< -o $@
 """
 
-        # Mise à jour de la variable EXEC
+        # Insertion avant 'clean' ou à la fin
+        if "clean:" in content:
+            new_content = content.replace("clean:", obf_rules + "\nclean:")
+        else:
+            new_content = content + obf_rules
+
+        # Mise à jour du nom de l'exécutable
         new_content = re.sub(
             r'^(EXEC\s*=\s*)(.*)$',
             f'EXEC = {exec_name}_obf',
@@ -179,11 +163,12 @@ $(OBF_IR): $(IR_FILES)
 
         with open(makefile_obf_path, "w") as f:
             f.write(new_content)
-        print(f"[✓] Makefile obfusqué configuré avec passe {config['pass_name']}")
+        print(f"[✓] Cible 'obfuscate' ajoutée au Makefile")
     else:
         print("[!] Avertissement : Aucun Makefile trouvé dans le dossier obfusqué")
+        return None
 
-    # 4. Compilation et obfuscation
+    # 3. Compilation et obfuscation
     print("\n[+] Compilation du projet original...")
     run_command("make clean && make", cwd=project_path)
 
