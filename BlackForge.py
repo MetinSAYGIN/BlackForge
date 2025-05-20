@@ -137,21 +137,6 @@ def process_project(config):
     else:
         print("[!] Aucun Makefile trouvé pour modifier EXEC")
 
-    # Compilation propre
-    print("\n[+] Compilation du projet original...")
-    run_command("make clean && make", cwd=project_path)
-
-    # Génération du IR avec nom personnalisé
-    print("\n[+] Génération du fichier LLVM IR...")
-    run_command(f"clang -emit-llvm -S -O1 {exec_name}.c -o {exec_name}.ll", cwd=project_path)
-
-    # Obfuscation via Makefile (adapté à ton système de règles Make)
-    print("\n[+] Obfuscation du projet...")
-    run_command(
-        f"make obfuscate PASS_SO={config['pass_so']} PASS_NAME={config['pass_name']} EXEC={exec_name}",
-        cwd=project_path
-    )
-
     # Déplacement des résultats
     shutil.copytree(project_path, obf_project_path, dirs_exist_ok=True)
     
@@ -178,6 +163,24 @@ def process_project(config):
             print("[i] Aucune ligne EXEC trouvée dans le Makefile obfuscated, rien changé.")
     else:
         print("[!] Aucun Makefile obfuscated trouvé pour modifier EXEC")
+
+    
+
+    # Compilation propre
+    print("\n[+] Compilation du projet original...")
+    run_command("make clean && make", cwd=project_path)
+
+    # Génération du IR avec nom personnalisé
+    print("\n[+] Génération du fichier LLVM IR...")
+    run_command(f"clang -emit-llvm -S -O1 {exec_name}.c -o {exec_name}.ll", cwd=obf_project_path)
+
+    # Obfuscation via Makefile (adapté à ton système de règles Make)
+    print("\n[+] Obfuscation du projet...")
+    run_command(
+        f"make PASS_SO={config['pass_so']} PASS_NAME={config['pass_name']} EXEC={exec_name_obf}",
+        cwd=obf_project_path
+    )
+    
     
     return {
         "clair_bin": os.path.join(project_path, exec_name),
