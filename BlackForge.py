@@ -107,72 +107,78 @@ def process_target(config):
     else:
         return process_file(config)
 
+import os
+import shutil
+import re
+
 def process_project(config):
-    """Traite un projet complet avec obfuscation LLVM"""
+    """Transforme un Makefile standard en Makefile avec obfuscation"""
     project_path = os.path.join(SOURCE_DIR, config["target"])
     obf_project_path = os.path.join(OBF_DIR, config["target"])
     exec_name = os.path.basename(project_path)
     
-    # 1. Copie du projet vers le dossier obfusqué
+    # 1. Copie du projet
     shutil.copytree(project_path, obf_project_path, dirs_exist_ok=True)
-    print(f"[✓] Projet copié vers {obf_project_path}")
     
-    # 2. Modification du Makefile obfusqué
-    makefile_obf_path = os.path.join(obf_project_path, "Makefile")
-    if os.path.exists(makefile_obf_path):
-        with open(makefile_obf_path, "r") as f:
+    # 2. Modification du Makefile
+    makefile_path = os.path.join(obf_project_path, "Makefile")
+    if os.path.exists(makefile_path):
+        with open(makefile_path, "r+") as f:
             content = f.read()
+            
+            # Suppression des anciennes règles ll si existantes
+            content = re.sub(r'# Génération des fichiers LLVM IR.*?(?=(\n\w|$))', '', content, flags=re.DOTALL)
+            
+            # Ajout des nouvelles règles d'obfuscation
+            obf_rules = f"""
+# === Obfuscation LLVM ===
+SO_PATH = {os.path.dirname(config['pass_so'])}
+PASS_NAME ?= $(error Spécifiez PASS_NAME: make obfuscate PASS_NAME=NomPasse)
 
-        # Ajout des règles d'obfuscation LLVM
-        obf_rules = f"""
-# === Règles d'obfuscation LLVM (ajoutées automatiquement) ===
-OBF_SO_PATH = {os.path.dirname(config['pass_so'])}
-PASS_NAME ?= $(error Spécifiez PASS_NAME: make obfuscate PASS_NAME=NomDeVotrePasse)
-
-IR_FILES = $(patsubst %.c,%.ll,$(wildcard *.c))
-OBF_IR = $(EXEC).ll
-OBF_OUT = $(EXEC)_obf
+LL_FILES = $(patsubst %.c,%.ll,$(wildcard *.c))
+OBF_LL_FILES = $(patsubst %.ll,%_obf.ll,$(LL_FILES))
+EXEC_OBF = $(EXEC)_obf
 
 .PHONY: obfuscate
-obfuscate: $(OBF_OUT)
 
-$(OBF_OUT): $(OBF_IR)
-\topt -load $(OBF_SO_PATH)/$(PASS_NAME).so -$(PASS_NAME) < $< | llc -filetype=obj -o $(EXEC)_obf.o
-\t$(CC) $(EXEC)_obf.o -o $@
-
-$(OBF_IR): $(IR_FILES)
-\tllvm-link $(IR_FILES) -o $@
-
+# Génération LLVM IR
 %.ll: %.c
-\t$(CC) -emit-llvm -S $(CFLAGS) $< -o $@
+\t@echo "[+] Génération LLVM IR pour $<"
+\t$(CC) -S -emit-llvm $(CFLAGS) $< -o $@
+
+# Application des passes
+%_obf.ll: %.ll
+\t@echo "[+] Obfuscation de $<"
+\topt -load-pass-plugin $(SO_PATH)/$(PASS_NAME).so -passes=$(PASS_NAME) -S $< -o $@
+
+# Compilation finale
+obfuscate: $(EXEC_OBF)
+
+$(EXEC_OBF): $(OBF_LL_FILES)
+\t@echo "[+] Compilation du binaire obfusqué..."
+\t$(CC) $(CFLAGS) -o $@ $^
 """
-
-        # Insertion avant 'clean' ou à la fin
-        if "clean:" in content:
-            new_content = content.replace("clean:", obf_rules + "\nclean:")
-        else:
-            new_content = content + obf_rules
-
-        # Mise à jour du nom de l'exécutable
-        new_content = re.sub(
-            r'^(EXEC\s*=\s*)(.*)$',
-            f'EXEC = {exec_name}_obf',
-            new_content,
-            flags=re.MULTILINE
-        )
-
-        with open(makefile_obf_path, "w") as f:
-            f.write(new_content)
-        print(f"[✓] Cible 'obfuscate' ajoutée au Makefile")
+            # Insertion avant la règle clean
+            if "clean:" in content:
+                content = content.replace("clean:", obf_rules + "\nclean:")
+            else:
+                content += obf_rules
+            
+            # Réécriture du fichier
+            f.seek(0)
+            f.write(content)
+            f.truncate()
+            
+        print("[✓] Règles d'obfuscation ajoutées au Makefile")
     else:
-        print("[!] Avertissement : Aucun Makefile trouvé dans le dossier obfusqué")
+        print("[!] Makefile introuvable")
         return None
 
-    # 3. Compilation et obfuscation
-    print("\n[+] Compilation du projet original...")
+    # 3. Compilation
+    print("\n[1/2] Compilation du binaire clair...")
     run_command("make clean && make", cwd=project_path)
-
-    print("\n[+] Obfuscation LLVM...")
+    
+    print("\n[2/2] Génération du binaire obfusqué...")
     run_command(f"make obfuscate PASS_NAME={config['pass_name']}", cwd=obf_project_path)
 
     return {
