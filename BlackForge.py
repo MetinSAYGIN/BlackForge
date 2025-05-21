@@ -136,6 +136,7 @@ def process_project(config):
 # === Obfuscation LLVM ===
 PASS_SO = {pass_so}
 PASS_NAME ?= $(error Spécifiez PASS_NAME: make obfuscate PASS_NAME=NomPasse)
+export LD_LIBRARY_PATH := $(dir $(PASS_SO)):$(LD_LIBRARY_PATH)
 
 # Fichiers intermédiaires
 OBF_OBJS = $(patsubst %.c,%_obf.o,$(wildcard *.c))
@@ -147,7 +148,7 @@ obfuscate: {exec_name}_obf
 %_obf.o: %.c
 \t@echo "[+] Traitement de $<"
 \t$(CC) -emit-llvm -S $(CFLAGS) $< -o $*.ll
-\t$(shell which opt) -load-pass-plugin $(PASS_SO) -passes=$(PASS_NAME) -S $*.ll -o $*_obf.ll
+\topt -load-pass-plugin $(PASS_SO) -passes=$(PASS_NAME) -S $*.ll -o $*_obf.ll
 \t$(CC) -c $*_obf.ll -o $@
 \t@rm -f $*.ll $*_obf.ll
 
@@ -171,13 +172,7 @@ obfuscate: {exec_name}_obf
     run_command("make clean && make", cwd=project_path)
     
     print("\n[2/3] Obfuscation...")
-    env = os.environ.copy()
-    env["LD_LIBRARY_PATH"] = str(pass_so.parent)  # Pour le chargement .so
-    run_command(
-        f"make obfuscate PASS_NAME={config['pass_name']}", 
-        cwd=obf_project_path,
-        env=env
-    )
+    run_command(f"make obfuscate PASS_NAME={config['pass_name']}", cwd=obf_project_path)
     
     return {
         "clair_bin": os.path.join(project_path, exec_name),
