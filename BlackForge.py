@@ -211,7 +211,7 @@ def main():
     config["pass_so"] = compile_pass(config["pass_name"])
 
     """On supprime les executables et -o déjà présent dans sources(Nettoyage)"""
-    run_command(f"find ./sources -type f \( -name "*.o" -o \( -executable ! -name "*.*" \) \) -delete")
+    run_command(f"find ./sources -type f \( -name '*.o' -o \( -executable ! -name "*.*" \) \) -delete")
     print("\n[+] Traitement de la cible...")
     binaries = process_target(config)
     
