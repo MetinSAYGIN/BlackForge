@@ -1,8 +1,10 @@
-# Makefile simple pour projet multi-fichiers
-CC = gcc
-CFLAGS = -Wall -Wextra -std=c11
-OBJ = main.o operations.o
-EXEC = multiplicateur
+CC = clang
+CFLAGS = -O1 -Wall -Wextra -std=c11
+
+SRC = main.c fonctions.c
+OBJ = main.o fonctions.o
+LLS = main.ll fonctions.ll
+EXEC = test2_project
 
 .PHONY: all clean
 
