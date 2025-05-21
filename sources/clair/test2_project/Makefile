@@ -1,9 +1,9 @@
 CC = clang
 CFLAGS = -O1 -Wall -Wextra -std=c11
 
-SRC = main.c fonctions.c
-OBJ = main.o fonctions.o
-LLS = main.ll fonctions.ll
+SRC = main.c operations.c
+OBJ = main.o operations.o
+LLS = main.ll operations.ll
 EXEC = test2_project
 
 .PHONY: all clean
