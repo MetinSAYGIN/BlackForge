@@ -107,10 +107,6 @@ def process_target(config):
     else:
         return process_file(config)
 
-import os
-import shutil
-import re
-
 def process_project(config):
     """Version finale avec gestion robuste des chemins"""
     project_path = os.path.join(SOURCE_DIR, config["target"])
@@ -213,7 +209,9 @@ def main():
     """Point d'entrée principal"""
     config = setup_environment()
     config["pass_so"] = compile_pass(config["pass_name"])
-    
+
+    """On supprime les executables et -o déjà présent dans sources(Nettoyage)"""
+    run_command(f"find ./sources -type f \( -name "*.o" -o \( -executable ! -name "*.*" \) \) -delete")
     print("\n[+] Traitement de la cible...")
     binaries = process_target(config)
     
