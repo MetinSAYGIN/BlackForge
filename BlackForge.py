@@ -112,75 +112,73 @@ import shutil
 import re
 
 def process_project(config):
-    """Transforme un Makefile standard en Makefile avec obfuscation"""
+    """Version finale avec gestion robuste des chemins"""
     project_path = os.path.join(SOURCE_DIR, config["target"])
     obf_project_path = os.path.join(OBF_DIR, config["target"])
     exec_name = os.path.basename(project_path)
     
-    # 1. Copie du projet
-    shutil.copytree(project_path, obf_project_path, dirs_exist_ok=True)
+    # 1. Copie du projet avec résolution des liens symboliques
+    shutil.copytree(project_path, obf_project_path, dirs_exist_ok=True, symlinks=True)
     
-    # 2. Modification du Makefile
+    # 2. Conversion du chemin en absolu et vérification
+    pass_so = Path(config['pass_so']).resolve()
+    if not pass_so.exists():
+        raise FileNotFoundError(f"Fichier .so introuvable: {pass_so}")
+
+    # 3. Modification du Makefile
     makefile_path = os.path.join(obf_project_path, "Makefile")
     if os.path.exists(makefile_path):
         with open(makefile_path, "r+") as f:
             content = f.read()
             
-            # Suppression des anciennes règles ll si existantes
-            content = re.sub(r'# Génération des fichiers LLVM IR.*?(?=(\n\w|$))', '', content, flags=re.DOTALL)
-            
-            # Ajout des nouvelles règles d'obfuscation
+            # Ajout des règles avec chemin ABSOLU
             obf_rules = f"""
 # === Obfuscation LLVM ===
-SO_PATH = {os.path.dirname(config['pass_so'])}
+PASS_SO = {pass_so}
 PASS_NAME ?= $(error Spécifiez PASS_NAME: make obfuscate PASS_NAME=NomPasse)
 
-LL_FILES = $(patsubst %.c,%.ll,$(wildcard *.c))
-OBF_LL_FILES = $(patsubst %.ll,%_obf.ll,$(LL_FILES))
-EXEC_OBF = $(EXEC)_obf
+# Fichiers intermédiaires
+OBF_OBJS = $(patsubst %.c,%_obf.o,$(wildcard *.c))
 
 .PHONY: obfuscate
+obfuscate: {exec_name}_obf
 
-# Génération LLVM IR
-%.ll: %.c
-\t@echo "[+] Génération LLVM IR pour $<"
-\t$(CC) -S -emit-llvm $(CFLAGS) $< -o $@
+# Règle générique d'obfuscation
+%_obf.o: %.c
+\t@echo "[+] Traitement de $<"
+\t$(CC) -emit-llvm -S $(CFLAGS) $< -o $*.ll
+\t$(shell which opt) -load-pass-plugin $(PASS_SO) -passes=$(PASS_NAME) -S $*.ll -o $*_obf.ll
+\t$(CC) -c $*_obf.ll -o $@
+\t@rm -f $*.ll $*_obf.ll
 
-# Application des passes
-%_obf.ll: %.ll
-\t@echo "[+] Obfuscation de $<"
-\topt -load-pass-plugin $(SO_PATH)/$(PASS_NAME).so -passes=$(PASS_NAME) -S $< -o $@
-
-# Compilation finale
-obfuscate: $(EXEC_OBF)
-
-$(EXEC_OBF): $(OBF_LL_FILES)
-\t@echo "[+] Compilation du binaire obfusqué..."
+# Édition des liens finale
+{exec_name}_obf: $(OBF_OBJS)
+\t@echo "[+] Édition des liens obfusquée"
 \t$(CC) $(CFLAGS) -o $@ $^
 """
-            # Insertion avant la règle clean
+            # Insertion avant clean
             if "clean:" in content:
                 content = content.replace("clean:", obf_rules + "\nclean:")
             else:
                 content += obf_rules
-            
-            # Réécriture du fichier
+                
             f.seek(0)
             f.write(content)
             f.truncate()
-            
-        print("[✓] Règles d'obfuscation ajoutées au Makefile")
-    else:
-        print("[!] Makefile introuvable")
-        return None
 
-    # 3. Compilation
-    print("\n[1/2] Compilation du binaire clair...")
+    # 4. Compilation
+    print("\n[1/3] Compilation normale...")
     run_command("make clean && make", cwd=project_path)
     
-    print("\n[2/2] Génération du binaire obfusqué...")
-    run_command(f"make obfuscate PASS_NAME={config['pass_name']}", cwd=obf_project_path)
-
+    print("\n[2/3] Obfuscation...")
+    env = os.environ.copy()
+    env["LD_LIBRARY_PATH"] = str(pass_so.parent)  # Pour le chargement .so
+    run_command(
+        f"make obfuscate PASS_NAME={config['pass_name']}", 
+        cwd=obf_project_path,
+        env=env
+    )
+    
     return {
         "clair_bin": os.path.join(project_path, exec_name),
         "obf_bin": os.path.join(obf_project_path, f"{exec_name}_obf")
