@@ -232,3 +232,11 @@ $ python BlackForge.py  # Run with combined passes
 * Add batch processing mode for evaluating multiple passes at once
 * Support for more diverse metrics and analysis tools
 * Add pre-built common obfuscation passes library
+
+
+
+
+Metin SAYGIN
+Developed with AI assistance for code optimization and documentation
+
+BlackForge - Binary Obfuscation
