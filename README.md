@@ -251,8 +251,9 @@ $ python BlackForge.py  # Run with combined passes
 
 
 
+## 👨‍💻 Author
 
-Metin SAYGIN
-Developed with AI assistance for code optimization and documentation
-
-BlackForge - Binary Obfuscation
+**Metin SAYGIN**  
+*Developed with AI assistance for code optimization and documentation*
+---
+*BlackForge - Advanced Binary Obfuscation Framework*
