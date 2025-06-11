@@ -1,4 +1,4 @@
-# BlackForge
+![image](https://github.com/user-attachments/assets/92149d04-d9f6-4ec9-b5b3-bfcfa47dfabb)# BlackForge
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Language](https://img.shields.io/badge/language-Python-green.svg)
@@ -87,6 +87,7 @@ Follow the interactive prompts to:
 ### For Individual Files
 
 Individual C/C++ files can be placed directly in the `sources/clair/` directory.
+It will not use any custom makefile, I recommend you to use "Projects".
 
 ### For Projects
 
@@ -98,24 +99,8 @@ Projects should be organized as directories inside `sources/clair/` with a Makef
 The script will automatically add an `obfuscate` target to your Makefile if needed.
 
 ## 📊 Example Output
+![image](https://github.com/user-attachments/assets/4880737b-e6d5-4636-a6ef-23b37db910f3)
 
-```
-=== 📊 RÉSULTATS DE L'ANALYSE ===
-+----------------+----------------+----------------+
-| Métrique       | Binaire clair  | Binaire obfusqué |
-+----------------+----------------+----------------+
-| Taille (Ko)    |         12.50  |          16.24  |
-| Temps (s)      |       0.0021   |        0.0043   |
-| CPU (%)        |       2.50     |        3.75     |
-| Entropie       |       5.6745   |        6.1243   |
-+----------------+----------------+----------------+
-| Variation (%)  |
-| Taille:    29.92%
-| Temps:    104.76%
-| CPU:       50.00%
-| Entropie:   7.93%
-+----------------+
-```
 
 ## 📝 Creating Custom Obfuscation Passes
 
