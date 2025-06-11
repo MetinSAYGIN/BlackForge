@@ -1,5 +1,3 @@
-![image](https://github.com/user-attachments/assets/92149d04-d9f6-4ec9-b5b3-bfcfa47dfabb)# BlackForge
-
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Language](https://img.shields.io/badge/language-Python-green.svg)
 ![LLVM](https://img.shields.io/badge/LLVM-compatible-orange.svg)
