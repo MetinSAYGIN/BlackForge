@@ -62,8 +62,11 @@ BlackForge/
 │   ├── clair/          # Original source files
 │   │   ├── project1/
 │   │   ├── project2/
-│   │   └── file.c
+│   │   └── project3/
 │   └── obfusque/       # Output obfuscated files
+│   │   ├── project1/
+│   │   ├── project2/
+│   │   └── project3/
 ├── build/              # Compiled passes (.so files)
 └── logs/               # Logs directory
 ```
