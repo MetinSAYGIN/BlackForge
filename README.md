@@ -98,9 +98,42 @@ Projects should be organized as directories inside `sources/clair/` with a Makef
 
 The script will automatically add an `obfuscate` target to your Makefile if needed.
 
-## 📊 Example Output
-![image](https://github.com/user-attachments/assets/4880737b-e6d5-4636-a6ef-23b37db910f3)
+Then compare both binaries with 
 
+```bash
+python Compare.py
+```
+## 📊 Example Output
+```bash
+[+] Comparaison entre:
+- Clair    : sources/clair/hello_world
+- Obfusqué : sources/obfusque/hello_world/hello_world
+
+[+] Benchmark du binaire clair...
+[+] Benchmark du binaire obfusqué...
+
+=== RÉSULTATS ===
+>> Taille du binaire final (fichier compilé)
+Clair    : 69.00 Ko
+Obfusqué : 69.00 Ko (+0.00%)
+
+>> Taille des segments ELF (mémoire utile)
+text   : 2183 → 2408 (+225 | +10.31%)
+data   : 632 → 632 (+0 | +0.00%)
+bss    : 8 → 8 (+0 | +0.00%)
+dec    : 2823 → 3048 (+225 | +7.97%)
+hex    : 0 → 0 (+0 | +0.00%)
+filename : 0 → 0 (+0 | +0.00%)
+
+>> Entropie du binaire (aléa du contenu)
+Clair    : 0.5456
+Obfusqué : 0.5818 (+0.0361)
+
+>> Temps d'exécution moyen (5 runs)
+Clair    : 0.0045s (±0.0001)
+Obfusqué : 0.0044s (±0.0001)
+Différence : -0.0001s (-1.63%)
+```
 
 ## 📝 Creating Custom Obfuscation Passes
 
