@@ -113,15 +113,15 @@ def process_project(config):
     obf_project_path = os.path.join(OBF_DIR, config["target"])
     exec_name = os.path.basename(project_path)
     
-    # 1. Copie du projet avec résolution des liens symboliques
+    # On opie du projet avec résolution des liens symboliques
     shutil.copytree(project_path, obf_project_path, dirs_exist_ok=True, symlinks=True)
     
-    # 2. Conversion du chemin en absolu et vérification
+    # Conversion du chemin en absolu et vérification
     pass_so = Path(config['pass_so']).resolve()
     if not pass_so.exists():
         raise FileNotFoundError(f"Fichier .so introuvable: {pass_so}")
 
-    # 3. Modification du Makefile
+    # Modification du Makefile (est ce vraiment utile de se prendre la tête avec le makefile ?)
     makefile_path = os.path.join(obf_project_path, "Makefile")
     if os.path.exists(makefile_path):
         with open(makefile_path, "r+") as f:
@@ -163,7 +163,7 @@ obfuscate: {exec_name}_obf
             f.write(content)
             f.truncate()
 
-    # 4. Compilation
+    # Compilation
     print("\n[1/3] Compilation normale...")
     run_command("make clean && make", cwd=project_path)
     
